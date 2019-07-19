@@ -89,14 +89,19 @@ public class WorldListener implements Listener {
 			}
 		}
 
-		if (from.getWorld().getName().endsWith("_nether")) {
+		if (EnvironmentPlugin.isNether(event.getFrom().getWorld().getName())) {
 			if (from.getBlockX() > 2688 || from.getBlockX() < -2688 ||
 					from.getBlockZ() > 1340 || from.getBlockZ() < -1340) {
 				player.sendMessage(EnvironmentPlugin.HEY + "You can't take a portal to outer space. " + 
-					"Try getting closer to the Earth.");
+						"Try getting closer to the Earth.");
 				event.setCancelled(true);
 				return;
 			}
+		}
+
+		if (EnvironmentPlugin.isOverworld(event.getFrom().getWorld().getName())) {
+			player.sendMessage(EnvironmentPlugin.HEY + "You can only teleport back to the Overworld through a " 
+					+ "portal, so don't lose track of where your portal is!");
 		}
 	}
 
