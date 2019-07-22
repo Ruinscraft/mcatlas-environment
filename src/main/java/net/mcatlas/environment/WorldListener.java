@@ -207,17 +207,12 @@ public class WorldListener implements Listener {
 		}
 	}
 
-	private void putPlayerInVehicle(Player player, Location newLocation) {
-		if (player.isInsideVehicle()) {
-			player.getVehicle().teleport(newLocation);
-		}
-	}
-
 	@EventHandler(priority = EventPriority.LOWEST)
 	public void onPlayerTeleport(PlayerTeleportEvent event) {
 		Player player = event.getPlayer();
 		if (EnvironmentPlugin.isNether(player.getWorld().getName())) {
 			if (event.getTo().getY() >= 127) {
+				if (EnvironmentPlugin.isOverworld(event.getTo().getWorld().getName())) return;
 				player.sendMessage(EnvironmentPlugin.HEY + "You can't come up here.");
 				event.setCancelled(true);
 				return;
