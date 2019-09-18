@@ -23,6 +23,10 @@ import com.google.gson.JsonParser;
 
 import net.md_5.bungee.api.ChatColor;
 
+/**
+ * Handles elements of the MCAtlas world itself.
+ *
+ */
 public class EnvironmentPlugin extends JavaPlugin {
 
 	private static EnvironmentPlugin plugin;
@@ -33,10 +37,12 @@ public class EnvironmentPlugin extends JavaPlugin {
 
 	private Queue<Player> playerQueue;
 
-	public static final String HEY = ChatColor.RED + "" + ChatColor.BOLD + "Hey! " + ChatColor.RESET;
-	public static final String WHOOSH = ChatColor.RED + "" + ChatColor.BOLD + "WHOOOSH. " + ChatColor.RESET;
+	public static final String HEY = ChatColor.RED + "" 
+							+ ChatColor.BOLD + "Hey! " + ChatColor.RESET;
+	public static final String WHOOSH = ChatColor.RED + "" 
+							+ ChatColor.BOLD + "WHOOOSH. " + ChatColor.RESET;
 
-	public static EnvironmentPlugin getEnvironment() {
+	public static EnvironmentPlugin getEnvironmentPlugin() {
 		return plugin;
 	}
 
@@ -48,40 +54,13 @@ public class EnvironmentPlugin extends JavaPlugin {
 		getServer().getPluginManager().registerEvents(new WorldListener(), this);
 
 		saveDefaultConfig();
-		apiKey = getConfig().getString("apiKey");
-		scaling = getConfig().getDouble("scaling");
+		this.apiKey = getConfig().getString("apiKey");
+		this.scaling = getConfig().getDouble("scaling");
 
 		playerQueue = new LinkedList<>();
 
 		Bukkit.getScheduler().runTaskTimer(this, () -> {
-			Collection<? extends Player> players = Bukkit.getWorlds().get(0).getPlayers();
-			if (players.size() == 0) return;
-
-			if (playerQueue.size() == 0) { 
-				refreshQueueWithPlayers(players); 
-			}
-			Player player = playerQueue.poll();
-			Location location = player.getLocation();
-
-			CompletableFuture.runAsync(() -> {
-				Condition condition = getCondition(location);
-
-				switch (condition) {
-				case CLEAR: {
-					Bukkit.getScheduler().runTask(this, () -> {
-						player.setPlayerWeather(WeatherType.CLEAR);
-					});
-					return;
-				}
-				case STORM: // maybe one day add thunderstorm-per-user implementation? idk
-				case RAIN: {
-					Bukkit.getScheduler().runTask(this, () -> {
-						player.setPlayerWeather(WeatherType.DOWNFALL);
-					});
-					return;
-				}
-				}
-			});
+			handleWeatherCycle();
 		}, 0L, 60L); // pull a new player to set weather every 3 seconds
 	}
 
@@ -94,18 +73,48 @@ public class EnvironmentPlugin extends JavaPlugin {
 		return apiKey;
 	}
 
+
+	// Handles all weather
+	public void handleWeatherCycle() {
+		Collection<? extends Player> players = Bukkit.getWorlds().get(0).getPlayers();
+		if (players.size() == 0) return;
+
+		if (playerQueue.size() == 0) refreshQueueWithPlayers(players);
+
+		Player player = playerQueue.poll();
+
+		// async!!!
+		CompletableFuture.runAsync(() -> {
+			setWeather(player);
+		});
+	}
+
+	// RUN ASYNC or lag
+	public void setWeather(Player player) {
+		Condition condition = getCondition(player.getLocation());
+
+		switch (condition) {
+		case CLEAR: {
+			Bukkit.getScheduler().runTask(this, () -> {
+				player.setPlayerWeather(WeatherType.CLEAR);
+			});
+			return;
+		}
+		case STORM: // maybe one day add thunderstorm-per-user implementation? idk
+		case RAIN: {
+			Bukkit.getScheduler().runTask(this, () -> {
+				player.setPlayerWeather(WeatherType.DOWNFALL);
+			});
+			return;
+		}
+		}
+	}
+
 	public void refreshQueueWithPlayers(Collection<? extends Player> players) {
 		playerQueue.clear();
 		for (Player player : players) {
 			playerQueue.add(player);
 		}
-	}
-
-	// returns real life coordinate!!
-	public Coordinate getLifeFromMC(int mcX, int mcY) {
-		int x = (int) (mcX / scaling);
-		int y = (int) (mcY / scaling) * -1;
-		return new Coordinate(x, y);
 	}
 
 	public Condition getCondition(Location location) {
@@ -138,11 +147,12 @@ public class EnvironmentPlugin extends JavaPlugin {
 	public String getDetailedWeatherDescription(Location location) {
 		String noWeather = "No weather. Maybe the weather satellite broke?";
 
-		Coordinate coord = EnvironmentPlugin.getEnvironment()
+		Coordinate coord = EnvironmentPlugin.getEnvironmentPlugin()
 				.getLifeFromMC(location.getBlockX(), location.getBlockZ());
 
-		String urlString = "http://api.openweathermap.org/data/2.5/weather?lat=" + coord.y 
-				+ "&lon=" + coord.x + "&appid=" + EnvironmentPlugin.getEnvironment().getAPIKey();
+		String urlString = "http://api.openweathermap.org/data/2.5/weather?lat=" 
+				+ coord.y + "&lon=" + coord.x + "&appid=" 
+				+ EnvironmentPlugin.getEnvironmentPlugin().getAPIKey();
 		URL url = null;
 		HttpURLConnection connection = null;
 
@@ -151,22 +161,25 @@ public class EnvironmentPlugin extends JavaPlugin {
 			connection = (HttpURLConnection) url.openConnection();
 			connection.setRequestMethod("GET");
 			connection.connect();
-		} catch (Exception e) {
+		} catch (Exception e) { // any issue with the connection, like an error code
 			int code = 0;
 			try {
 				code = connection.getResponseCode();
 			} catch (IOException e1) {
 				e1.printStackTrace();
 			}
-			if (code == 500 && apiOffline) return noWeather;
-			if (code == 500 && !apiOffline) {
-				Bukkit.getLogger().warning("OpenWeatherMap went offline! No rain for now.");
+			if (code == 500 && apiOffline) { // api is known to be offline
+				return noWeather; 
+			} else if (code == 500 && !apiOffline) { // api is not known to be offline
+				Bukkit.getLogger().warning("OpenWeatherMap went offline! No weather for now.");
 				apiOffline = true;
+				return noWeather; 
+			} else if (code == 400) { // bad request (happens occasionally)
+				return noWeather;
+			} else { // anything else
+				e.printStackTrace();
 				return noWeather;
 			}
-			if (code == 400) return noWeather;
-			e.printStackTrace();
-			return noWeather;
 		}
 
 		JsonParser jp = new JsonParser();
@@ -189,6 +202,13 @@ public class EnvironmentPlugin extends JavaPlugin {
 		}
 
 		return weatherDesc;
+	}
+
+	// returns real life coordinate!!
+	public Coordinate getLifeFromMC(int mcX, int mcY) {
+		int x = (int) (mcX / scaling);
+		int y = (int) (mcY / scaling) * -1;
+		return new Coordinate(x, y);
 	}
 
 	public static boolean isOverworld(String worldName) {

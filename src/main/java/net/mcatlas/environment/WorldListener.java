@@ -19,40 +19,51 @@ import org.bukkit.event.player.PlayerPortalEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.inventory.ItemStack;
 
-import net.md_5.bungee.api.ChatColor;
-
+/**
+ * Environment listener for various things
+ *
+ */
 public class WorldListener implements Listener {
 
+	// When block is placed
 	@EventHandler(priority = EventPriority.LOWEST)
 	public void onBlockPlace(BlockPlaceEvent event) {
 		Block block = event.getBlock();
 		Player player = event.getPlayer();
 		String worldName = block.getWorld().getName();
 
+		// No ender chests!!!
 		if (block.getType() == Material.ENDER_CHEST) {
-			player.sendMessage(EnvironmentPlugin.HEY + "Ender chests are disabled for now.");
+			player.sendMessage(EnvironmentPlugin.HEY 
+					+ "Ender chests are disabled. Store your stuff elsewhere!");
 			event.setCancelled(true);
 			return;
 		}
 
+		// No methods of storing items in not-Overworld
 		if (worldName.endsWith("_nether") || worldName.endsWith("_the_end")) {
-			if (block.getState() instanceof Container && block.getType() != Material.ENDER_CHEST) {
-				player.sendMessage(EnvironmentPlugin.HEY + "You can't put containers in the Nether or The End.");
+			if (block.getState() instanceof Container 
+					&& block.getType() != Material.ENDER_CHEST) {
+				player.sendMessage(EnvironmentPlugin.HEY 
+						+ "You can't put containers in the Nether or The End.");
 
 				event.setCancelled(true);
 				return;
 			}
 
 			if (block.getType() == Material.ITEM_FRAME) {
-				player.sendMessage(EnvironmentPlugin.HEY + "You can't put item frames in the Nether or The End.");
+				player.sendMessage(EnvironmentPlugin.HEY 
+						+ "You can't put item frames in the Nether or The End.");
 				event.setCancelled(true);
 				return;
 			}
 		} else {
 			int x = block.getX();
 			int z = block.getZ();
+			// Can't build outside of world border
 			if (x > 21503 || x < -21504 || z > 10751 || z < -10752) {
-				player.sendMessage(EnvironmentPlugin.HEY + "You can't build off to the Moon.");
+				player.sendMessage(EnvironmentPlugin.HEY 
+						+ "You can't build off to the Moon.");
 
 				event.setCancelled(true);
 				return;
@@ -60,6 +71,7 @@ public class WorldListener implements Listener {
 		}
 	}
 
+	// Remove (most) gold drops from pigmen
 	@EventHandler(priority = EventPriority.LOWEST)
 	public void onEntityDeath(EntityDeathEvent event) {
 		if ((event.getEntityType() != EntityType.PIG_ZOMBIE) && 
@@ -74,49 +86,60 @@ public class WorldListener implements Listener {
 		}
 	}
 
+	// When a player enters a portal
 	@EventHandler(priority = EventPriority.LOWEST)
 	public void onPlayerPortal(PlayerPortalEvent event) {
 		Location from = event.getFrom();
 		Player player = event.getPlayer();
 
+		// No shulker boxes
 		for (ItemStack item : player.getInventory().getContents()) {
 			if (item == null) continue;
 			if (item.getType() == null) continue;
 			if (item.getType().name().contains("SHULKER_BOX")) {
-				player.sendMessage(EnvironmentPlugin.HEY + "Shulker boxes can't go through dimensions.");
+				player.sendMessage(EnvironmentPlugin.HEY 
+						+ "Shulker boxes can't go through dimensions.");
 				event.setCancelled(true);
 				return;
 			}
 		}
 
+		// Prevent users from teleporting outside of Overworld from the Nether
 		if (EnvironmentPlugin.isNether(event.getFrom().getWorld().getName())) {
 			if (from.getBlockX() > 2688 || from.getBlockX() < -2688 ||
 					from.getBlockZ() > 1340 || from.getBlockZ() < -1340) {
-				player.sendMessage(EnvironmentPlugin.HEY + "You can't take a portal to outer space. " + 
-						"Try getting closer to the Earth.");
+				player.sendMessage(EnvironmentPlugin.HEY 
+						+ "You can't take a portal to outer space. "
+						+ "Try getting closer to the Earth.");
 				event.setCancelled(true);
 				return;
 			}
 		}
 
+		// Alert when entering Nether/End
 		if (EnvironmentPlugin.isOverworld(event.getFrom().getWorld().getName())) {
-			player.sendMessage(EnvironmentPlugin.HEY + "You can only teleport back to the Overworld through a " 
-					+ "portal, so don't lose track of where your portal is!");
+			player.sendMessage(EnvironmentPlugin.HEY + "You can only teleport back to the " 
+					+ "Overworld through a portal, so don't " 
+					+ "lose track of where your portal is!");
 		}
 	}
 
+	// No accessing of containers outside of Overworld
+	// Maybe breakNaturally the container when opening it instead of not allowing at all
 	@EventHandler(priority = EventPriority.HIGH)
 	public void onInventoryOpen(InventoryOpenEvent event) {
 		String worldName = event.getPlayer().getWorld().getName();
 		if (EnvironmentPlugin.isNether(worldName) || EnvironmentPlugin.isEnd(worldName)) {
 			if (!(event.getInventory().getHolder() instanceof Player)) {
-				event.getPlayer().sendMessage(EnvironmentPlugin.HEY + "You can't use this here.");
+				event.getPlayer().sendMessage(EnvironmentPlugin.HEY 
+						+ "You can't use this here.");
 				event.setCancelled(true);
 				return;
 			}
 		}
 	}
 
+	// Handle teleporting across borders
 	@EventHandler(priority = EventPriority.LOWEST)
 	public void onPlayerMove(PlayerMoveEvent event) {
 		double x = event.getTo().getX();
@@ -137,11 +160,13 @@ public class WorldListener implements Listener {
 			if (x > 21500) {
 				newLocation = getAir(new Location(player.getWorld(), -21499, y, z, 
 						event.getTo().getYaw(), event.getTo().getPitch()));
-				player.sendMessage(EnvironmentPlugin.WHOOSH + "You just traversed the International Date Line.");
+				player.sendMessage(EnvironmentPlugin.WHOOSH 
+						+ "You just traversed the International Date Line.");
 			} else if (x < -21500) {
 				newLocation = getAir(new Location(player.getWorld(), 21499, y, z, 
 						event.getTo().getYaw(), event.getTo().getPitch()));
-				player.sendMessage(EnvironmentPlugin.WHOOSH + "You just traversed the International Date Line.");
+				player.sendMessage(EnvironmentPlugin.WHOOSH 
+						+ "You just traversed the International Date Line.");
 			} else if (z > 10748) {
 				float yaw = 0;
 				if (0 <= event.getTo().getYaw() && 180 >= event.getTo().getYaw()) {
@@ -157,7 +182,8 @@ public class WorldListener implements Listener {
 
 				newLocation = getAir(new Location(player.getWorld(), newx, y, 10746, 
 						yaw, event.getTo().getPitch()));
-				player.sendMessage(EnvironmentPlugin.WHOOSH + "You've crossed the South Pole. How did that work?");
+				player.sendMessage(EnvironmentPlugin.WHOOSH 
+						+ "You've crossed the South Pole. How did that work?");
 			} else if (z < -10748) {
 				float yaw = 0;
 				if (0 <= event.getTo().getYaw() && 180 >= event.getTo().getYaw()) {
@@ -173,14 +199,18 @@ public class WorldListener implements Listener {
 
 				newLocation = getAir(new Location(player.getWorld(), newx, y, -10746, 
 						yaw, event.getTo().getPitch()));
-				player.sendMessage(EnvironmentPlugin.WHOOSH + "You've crossed the North Pole. How did that work?");
+				player.sendMessage(EnvironmentPlugin.WHOOSH 
+						+ "You've crossed the North Pole. How did that work?");
 			} else {
 				return;
 			}
 
+			// TODO: Handle horses/etc. being carried across a border?
+			// might need to make this a higher priority to avoid anti-cheat
 			if (player.isInsideVehicle()) {
 				Entity vehicle = player.getVehicle();
-				Entity newVehicle = player.getWorld().spawnEntity(newLocation, vehicle.getType());
+				Entity newVehicle = player.getWorld()
+						.spawnEntity(newLocation, vehicle.getType());
 				if (vehicle.getType() == EntityType.BOAT) {
 					((Boat) newVehicle).setWoodType(((Boat) vehicle).getWoodType());
 				}
@@ -193,8 +223,8 @@ public class WorldListener implements Listener {
 			}
 		}
 	}
-	// x > 21503 || x < -21504 || z > 10751 || z < -10752
 
+	// TODO: fix an underground teleporting issue across the north/south
 	private Location getAir(Location location) {
 		if (location.getBlock().getType().equals(Material.AIR)) {
 			return location;
@@ -207,6 +237,7 @@ public class WorldListener implements Listener {
 		}
 	}
 
+	// No nether roof access!
 	@EventHandler(priority = EventPriority.LOWEST)
 	public void onPlayerTeleport(PlayerTeleportEvent event) {
 		Player player = event.getPlayer();
