@@ -79,7 +79,8 @@ public class WorldListener implements Listener {
 
 		for (int i = 0; i < event.getDrops().size(); i++) {
 			if (event.getDrops().get(i).getType().equals(Material.GOLD_INGOT) || 
-					event.getDrops().get(i).getType().equals(Material.GOLD_NUGGET)) {
+					event.getDrops().get(i).getType().equals(Material.GOLD_NUGGET) ||
+					event.getDrops().get(i).getType().equals(Material.GOLDEN_SWORD)) {
 				event.getDrops().remove(i);
 				i--;
 			}
@@ -105,7 +106,7 @@ public class WorldListener implements Listener {
 		}
 
 		// Prevent users from teleporting outside of Overworld from the Nether
-		if (EnvironmentPlugin.isNether(event.getFrom().getWorld().getName())) {
+		if (EnvironmentPlugin.isNether(event.getFrom().getWorld())) {
 			if (from.getBlockX() > 2688 || from.getBlockX() < -2688 ||
 					from.getBlockZ() > 1340 || from.getBlockZ() < -1340) {
 				player.sendMessage(EnvironmentPlugin.HEY 
@@ -116,8 +117,8 @@ public class WorldListener implements Listener {
 			}
 		}
 
-		// Alert when entering Nether/End
-		if (EnvironmentPlugin.isOverworld(event.getFrom().getWorld().getName())) {
+		// Alert when entering Nether
+		if (EnvironmentPlugin.isNether(event.getTo().getWorld())) {
 			player.sendMessage(EnvironmentPlugin.HEY + "You can only teleport back to the " 
 					+ "Overworld through a portal, so don't " 
 					+ "lose track of where your portal is!");
@@ -128,8 +129,7 @@ public class WorldListener implements Listener {
 	// Maybe breakNaturally the container when opening it instead of not allowing at all
 	@EventHandler(priority = EventPriority.HIGH)
 	public void onInventoryOpen(InventoryOpenEvent event) {
-		String worldName = event.getPlayer().getWorld().getName();
-		if (EnvironmentPlugin.isNether(worldName) || EnvironmentPlugin.isEnd(worldName)) {
+		if (EnvironmentPlugin.isNether(event.getPlayer().getWorld())) {
 			if (!(event.getInventory().getHolder() instanceof Player)) {
 				event.getPlayer().sendMessage(EnvironmentPlugin.HEY 
 						+ "You can't use this here.");
@@ -140,14 +140,14 @@ public class WorldListener implements Listener {
 	}
 
 	// Handle teleporting across borders
-	@EventHandler(priority = EventPriority.LOWEST)
+	@EventHandler(priority = EventPriority.HIGHEST)
 	public void onPlayerMove(PlayerMoveEvent event) {
 		double x = event.getTo().getX();
 		double y = event.getTo().getY();
 		double z = event.getTo().getZ();
 		Player player = event.getPlayer();
 
-		if (EnvironmentPlugin.isNether(player.getWorld().getName())) {
+		if (EnvironmentPlugin.isNether(player.getWorld())) {
 			if (y >= 127) {
 				player.sendMessage(EnvironmentPlugin.HEY + "You can't come up here.");
 				player.teleport(event.getFrom());
@@ -155,7 +155,7 @@ public class WorldListener implements Listener {
 			}
 		}
 
-		if (EnvironmentPlugin.isOverworld(player.getWorld().getName())) {
+		if (EnvironmentPlugin.isOverworld(player.getWorld())) {
 			Location newLocation;
 			if (x > 21500) {
 				newLocation = getAir(new Location(player.getWorld(), -21499, y, z, 
@@ -241,9 +241,9 @@ public class WorldListener implements Listener {
 	@EventHandler(priority = EventPriority.LOWEST)
 	public void onPlayerTeleport(PlayerTeleportEvent event) {
 		Player player = event.getPlayer();
-		if (EnvironmentPlugin.isNether(player.getWorld().getName())) {
+		if (EnvironmentPlugin.isNether(player.getWorld())) {
 			if (event.getTo().getY() >= 127) {
-				if (EnvironmentPlugin.isOverworld(event.getTo().getWorld().getName())) return;
+				if (EnvironmentPlugin.isOverworld(event.getTo().getWorld())) return;
 				player.sendMessage(EnvironmentPlugin.HEY + "You can't come up here.");
 				event.setCancelled(true);
 				return;

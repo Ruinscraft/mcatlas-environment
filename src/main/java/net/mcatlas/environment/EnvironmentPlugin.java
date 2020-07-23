@@ -10,9 +10,7 @@ import java.util.LinkedList;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 
-import org.bukkit.Bukkit;
-import org.bukkit.Location;
-import org.bukkit.WeatherType;
+import org.bukkit.*;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -20,8 +18,6 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-
-import net.md_5.bungee.api.ChatColor;
 
 /**
  * Handles elements of the MCAtlas world itself.
@@ -37,7 +33,7 @@ public class EnvironmentPlugin extends JavaPlugin {
 
 	private Queue<Player> playerQueue;
 
-	public static final String HEY = ChatColor.RED + "" 
+	public static final String HEY = ChatColor.RED + ""
 							+ ChatColor.BOLD + "Hey! " + ChatColor.RESET;
 	public static final String WHOOSH = ChatColor.RED + "" 
 							+ ChatColor.BOLD + "WHOOOSH. " + ChatColor.RESET;
@@ -211,16 +207,16 @@ public class EnvironmentPlugin extends JavaPlugin {
 		return new Coordinate(x, y);
 	}
 
-	public static boolean isOverworld(String worldName) {
-		return (!isNether(worldName) && !isEnd(worldName));
+	public static boolean isOverworld(World world) {
+		return world.getEnvironment() == World.Environment.NORMAL;
 	}
 
-	public static boolean isNether(String worldName) {
-		return worldName.endsWith("_nether");
+	public static boolean isNether(World world) {
+		return world.getEnvironment() == World.Environment.NETHER;
 	}
 
-	public static boolean isEnd(String worldName) {
-		return worldName.endsWith("_the_end");
+	public static boolean isEnd(World world) {
+		return world.getEnvironment() == World.Environment.THE_END;
 	}
 
 	public class Coordinate {
