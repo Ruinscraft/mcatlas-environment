@@ -15,6 +15,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.inventory.InventoryOpenEvent;
+import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerPortalEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
@@ -27,7 +28,7 @@ import org.bukkit.inventory.ItemStack;
 public class WorldListener implements Listener {
 
 	// When block is placed
-	@EventHandler(priority = EventPriority.LOWEST)
+	@EventHandler(priority = EventPriority.HIGHEST)
 	public void onBlockPlace(BlockPlaceEvent event) {
 		Block block = event.getBlock();
 		Player player = event.getPlayer();
@@ -133,6 +134,16 @@ public class WorldListener implements Listener {
 		if (EnvironmentPlugin.isNether(event.getPlayer().getWorld())) {
 			if (!(event.getInventory().getHolder() instanceof Player)) {
 				event.getPlayer().sendMessage(EnvironmentPlugin.HEY 
+						+ "You can't use this here.");
+				event.setCancelled(true);
+				return;
+			}
+		} else if (EnvironmentPlugin.isEnd(event.getPlayer().getWorld())) {
+			if (event.getInventory().getHolder() instanceof Player) {
+				return;
+			}
+			if (event.getInventory().getType() == InventoryType.ENDER_CHEST) {
+				event.getPlayer().sendMessage(EnvironmentPlugin.HEY
 						+ "You can't use this here.");
 				event.setCancelled(true);
 				return;
