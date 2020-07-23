@@ -2,6 +2,7 @@ package net.mcatlas.environment;
 
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.Container;
 import org.bukkit.entity.Boat;
@@ -41,7 +42,7 @@ public class WorldListener implements Listener {
 		}
 
 		// No methods of storing items in not-Overworld
-		if (worldName.endsWith("_nether") || worldName.endsWith("_the_end")) {
+		if (!EnvironmentPlugin.isOverworld(block.getWorld())) {
 			if (block.getState() instanceof Container 
 					&& block.getType() != Material.ENDER_CHEST) {
 				player.sendMessage(EnvironmentPlugin.HEY 
