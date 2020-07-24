@@ -2,7 +2,6 @@ package net.mcatlas.environment;
 
 import org.bukkit.Location;
 import org.bukkit.Material;
-import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.Container;
 import org.bukkit.entity.Boat;
@@ -95,15 +94,20 @@ public class WorldListener implements Listener {
 		Location from = event.getFrom();
 		Player player = event.getPlayer();
 
-		// No shulker boxes
-		for (ItemStack item : player.getInventory().getContents()) {
-			if (item == null) continue;
-			if (item.getType() == null) continue;
-			if (item.getType().name().contains("SHULKER_BOX")) {
-				player.sendMessage(EnvironmentPlugin.HEY 
-						+ "Shulker boxes can't go through dimensions.");
-				event.setCancelled(true);
-				return;
+		// If not teleporting to the overworld
+		if (!EnvironmentPlugin.isOverworld(event.getTo().getWorld())) {
+			// No shulker boxes in other dimensions
+			for (ItemStack item : player.getInventory().getContents()) {
+				if (item == null || item.getType() == Material.AIR) {
+					continue;
+				}
+
+				if (item.getType().name().contains("SHULKER_BOX")) {
+					player.sendMessage(EnvironmentPlugin.HEY
+							+ "Shulker boxes can't go to other dimensions.");
+					event.setCancelled(true);
+					return;
+				}
 			}
 		}
 
