@@ -8,6 +8,7 @@ import java.net.URL;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.Queue;
+import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 
 import org.bukkit.*;
@@ -33,11 +34,6 @@ public class EnvironmentPlugin extends JavaPlugin {
 
 	private Queue<Player> playerQueue;
 
-	public static final String HEY = ChatColor.RED + ""
-							+ ChatColor.BOLD + "Hey! " + ChatColor.RESET;
-	public static final String WHOOSH = ChatColor.RED + "" 
-							+ ChatColor.BOLD + "WHOOOSH. " + ChatColor.RESET;
-
 	public static EnvironmentPlugin getEnvironmentPlugin() {
 		return plugin;
 	}
@@ -56,7 +52,8 @@ public class EnvironmentPlugin extends JavaPlugin {
 		playerQueue = new LinkedList<>();
 
 		Bukkit.getScheduler().runTaskTimer(this, () -> {
-			handleWeatherCycle();
+			// remember to uncomment this
+			// handleWeatherCycle();
 		}, 0L, 60L); // pull a new player to set weather every 3 seconds
 	}
 

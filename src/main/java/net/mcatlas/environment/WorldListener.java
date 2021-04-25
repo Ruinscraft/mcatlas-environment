@@ -1,7 +1,9 @@
 package net.mcatlas.environment;
 
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.Container;
 import org.bukkit.entity.Boat;
@@ -18,13 +20,28 @@ import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerPortalEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
+import org.bukkit.event.world.WorldInitEvent;
 import org.bukkit.inventory.ItemStack;
+
+import static net.mcatlas.environment.EnvironmentUtil.*;
 
 /**
  * Environment listener for various things
  *
  */
 public class WorldListener implements Listener {
+
+	@EventHandler(priority = EventPriority.LOWEST)
+	public void onWorldInit(WorldInitEvent event) {
+		Bukkit.getLogger().info("WORLD IS INIT OMG");
+		World world = event.getWorld();
+
+		Bukkit.getLogger().info("" + world.getEnvironment());
+		if (world.getEnvironment() == World.Environment.NETHER) {
+			Bukkit.getLogger().info("!!!! Ok its added!!!!!!!!!!!!!!!!!");
+			world.getPopulators().add(new NetherPopulator());
+		}
+	}
 
 	// When block is placed
 	@EventHandler(priority = EventPriority.HIGHEST)
@@ -35,7 +52,7 @@ public class WorldListener implements Listener {
 
 		// No ender chests!!!
 		if (block.getType() == Material.ENDER_CHEST) {
-			player.sendMessage(EnvironmentPlugin.HEY 
+			player.sendMessage(MSG_HEY 
 					+ "Ender chests are disabled. Store your stuff elsewhere!");
 			event.setCancelled(true);
 			return;
@@ -45,7 +62,7 @@ public class WorldListener implements Listener {
 		if (!EnvironmentPlugin.isOverworld(block.getWorld())) {
 			if (block.getState() instanceof Container 
 					&& block.getType() != Material.ENDER_CHEST) {
-				player.sendMessage(EnvironmentPlugin.HEY 
+				player.sendMessage(MSG_HEY
 						+ "You can't put containers in the Nether or The End.");
 
 				event.setCancelled(true);
@@ -53,7 +70,7 @@ public class WorldListener implements Listener {
 			}
 
 			if (block.getType() == Material.ITEM_FRAME) {
-				player.sendMessage(EnvironmentPlugin.HEY 
+				player.sendMessage(MSG_HEY
 						+ "You can't put item frames in the Nether or The End.");
 				event.setCancelled(true);
 				return;
@@ -63,7 +80,7 @@ public class WorldListener implements Listener {
 			int z = block.getZ();
 			// Can't build outside of world border
 			if (x > 21503 || x < -21504 || z > 10751 || z < -10752) {
-				player.sendMessage(EnvironmentPlugin.HEY 
+				player.sendMessage(MSG_HEY 
 						+ "You can't build off to the Moon.");
 
 				event.setCancelled(true);
@@ -75,7 +92,7 @@ public class WorldListener implements Listener {
 	// Remove (most) gold drops from pigmen
 	@EventHandler(priority = EventPriority.LOWEST)
 	public void onEntityDeath(EntityDeathEvent event) {
-		if ((event.getEntityType() != EntityType.PIG_ZOMBIE) && 
+		if ((event.getEntityType() != EntityType.ZOMBIFIED_PIGLIN) &&
 				!(event.getEntityType() == EntityType.DROWNED)) return;
 
 		for (int i = 0; i < event.getDrops().size(); i++) {
@@ -103,7 +120,7 @@ public class WorldListener implements Listener {
 				}
 
 				if (item.getType().name().contains("SHULKER_BOX")) {
-					player.sendMessage(EnvironmentPlugin.HEY
+					player.sendMessage(MSG_HEY
 							+ "Shulker boxes can't go to other dimensions.");
 					event.setCancelled(true);
 					return;
@@ -115,7 +132,7 @@ public class WorldListener implements Listener {
 		if (EnvironmentPlugin.isNether(event.getFrom().getWorld())) {
 			if (from.getBlockX() > 2688 || from.getBlockX() < -2688 ||
 					from.getBlockZ() > 1340 || from.getBlockZ() < -1340) {
-				player.sendMessage(EnvironmentPlugin.HEY 
+				player.sendMessage(MSG_HEY 
 						+ "You can't take a portal to outer space. "
 						+ "Try getting closer to the Earth.");
 				event.setCancelled(true);
@@ -125,7 +142,7 @@ public class WorldListener implements Listener {
 
 		// Alert when entering Nether
 		if (EnvironmentPlugin.isNether(event.getTo().getWorld())) {
-			player.sendMessage(EnvironmentPlugin.HEY + "You can only teleport back to the " 
+			player.sendMessage(MSG_HEY + "You can only teleport back to the " 
 					+ "Overworld through a portal, so don't " 
 					+ "lose track of where your portal is!");
 		}
@@ -137,7 +154,7 @@ public class WorldListener implements Listener {
 	public void onInventoryOpen(InventoryOpenEvent event) {
 		if (EnvironmentPlugin.isNether(event.getPlayer().getWorld())) {
 			if (!(event.getInventory().getHolder() instanceof Player)) {
-				event.getPlayer().sendMessage(EnvironmentPlugin.HEY 
+				event.getPlayer().sendMessage(MSG_HEY 
 						+ "You can't use this here.");
 				event.setCancelled(true);
 				return;
@@ -147,7 +164,7 @@ public class WorldListener implements Listener {
 				return;
 			}
 			if (event.getInventory().getType() == InventoryType.ENDER_CHEST) {
-				event.getPlayer().sendMessage(EnvironmentPlugin.HEY
+				event.getPlayer().sendMessage(MSG_HEY
 						+ "You can't use this here.");
 				event.setCancelled(true);
 				return;
@@ -165,7 +182,7 @@ public class WorldListener implements Listener {
 
 		if (EnvironmentPlugin.isNether(player.getWorld())) {
 			if (y >= 127) {
-				player.sendMessage(EnvironmentPlugin.HEY + "You can't come up here.");
+				player.sendMessage(MSG_HEY + "You can't come up here.");
 				player.teleport(event.getFrom());
 				return;
 			}
@@ -176,12 +193,12 @@ public class WorldListener implements Listener {
 			if (x > 21500) {
 				newLocation = getAir(new Location(player.getWorld(), -21499, y, z, 
 						event.getTo().getYaw(), event.getTo().getPitch()));
-				player.sendMessage(EnvironmentPlugin.WHOOSH 
+				player.sendMessage(MSG_WHOOSH 
 						+ "You just traversed the International Date Line.");
 			} else if (x < -21500) {
 				newLocation = getAir(new Location(player.getWorld(), 21499, y, z, 
 						event.getTo().getYaw(), event.getTo().getPitch()));
-				player.sendMessage(EnvironmentPlugin.WHOOSH 
+				player.sendMessage(MSG_WHOOSH 
 						+ "You just traversed the International Date Line.");
 			} else if (z > 10748) {
 				float yaw = 0;
@@ -198,7 +215,7 @@ public class WorldListener implements Listener {
 
 				newLocation = getAir(new Location(player.getWorld(), newx, y, 10746, 
 						yaw, event.getTo().getPitch()));
-				player.sendMessage(EnvironmentPlugin.WHOOSH 
+				player.sendMessage(MSG_WHOOSH 
 						+ "You've crossed the South Pole. How did that work?");
 			} else if (z < -10748) {
 				float yaw = 0;
@@ -215,7 +232,7 @@ public class WorldListener implements Listener {
 
 				newLocation = getAir(new Location(player.getWorld(), newx, y, -10746, 
 						yaw, event.getTo().getPitch()));
-				player.sendMessage(EnvironmentPlugin.WHOOSH 
+				player.sendMessage(MSG_WHOOSH 
 						+ "You've crossed the North Pole. How did that work?");
 			} else {
 				return;
@@ -260,7 +277,7 @@ public class WorldListener implements Listener {
 		if (EnvironmentPlugin.isNether(player.getWorld())) {
 			if (event.getTo().getY() >= 127) {
 				if (EnvironmentPlugin.isOverworld(event.getTo().getWorld())) return;
-				player.sendMessage(EnvironmentPlugin.HEY + "You can't come up here.");
+				player.sendMessage(MSG_HEY + "You can't come up here.");
 				event.setCancelled(true);
 				return;
 			}
