@@ -42,19 +42,22 @@ public class EnvironmentPlugin extends JavaPlugin {
 	public void onEnable() {
 		plugin = this;
 
-		getCommand("weatherhere").setExecutor(new TestingCommand());
 		getServer().getPluginManager().registerEvents(new WorldListener(), this);
 
 		saveDefaultConfig();
-		this.apiKey = getConfig().getString("apiKey");
+		this.apiKey = getConfig().getString("apiKey", null);
 		this.scaling = getConfig().getDouble("scaling");
 
 		playerQueue = new LinkedList<>();
 
-		Bukkit.getScheduler().runTaskTimer(this, () -> {
-			// remember to uncomment this
-			// handleWeatherCycle();
-		}, 0L, 60L); // pull a new player to set weather every 3 seconds
+		boolean enableWeather = getConfig().getBoolean("enableWeather", true);
+		if (enableWeather && apiKey != null) {
+			getCommand("weatherhere").setExecutor(new TestingCommand());
+			Bukkit.getScheduler().runTaskTimer(this, () -> {
+				handleWeatherCycle();
+			}, 0L, 60L); // pull a new player to set weather every 3 seconds
+			// speed of setting weather individually depends on how many people are on
+		}
 	}
 
 	@Override

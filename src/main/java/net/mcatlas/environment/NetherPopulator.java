@@ -4,9 +4,11 @@ import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
 import org.bukkit.Material;
 import org.bukkit.World;
+import org.bukkit.block.Beehive;
 import org.bukkit.block.Biome;
 import org.bukkit.block.Block;
 import org.bukkit.block.data.BlockData;
+import org.bukkit.entity.Bee;
 import org.bukkit.generator.BlockPopulator;
 
 import static net.mcatlas.environment.EnvironmentUtil.*;
@@ -17,18 +19,44 @@ public class NetherPopulator extends BlockPopulator {
 
     @Override
     public void populate(World world, Random random, Chunk chunk) {
-        Bukkit.getLogger().info("CHUNK.");
+        Bukkit.getLogger().info("CHUNK LOADED");
         for (int x = 0; x < 16; x++) {
             for (int z = 0; z < 16; z++) {
-                for (int y = 1; y < 24; y++) { // only y=23 and below
+                for (int y = 1; y < 240; y++) { // only y=23 and below
                     Block block = chunk.getBlock(x, y, z);
                     BlockData blockData = block.getBlockData();
 
+                    // we don't need to edit air blocks
                     if (blockData.getMaterial() == Material.AIR) {
                         continue;
                     }
 
+                    // blocks to edit that are above the bottom layers of the map
+                    if (y >= 24) {
+                        switch (blockData.getMaterial()) {
+                            // replace nether gold with quartz
+                            case NETHER_GOLD_ORE:
+                                if (chance(90)) {
+                                    set(block, Material.NETHER_QUARTZ_ORE);
+                                }
+                                continue;
+                            // gold blocks in bastions will have some beehives with angry bees interspersed
+                            case GOLD_BLOCK:
+                                if (chance(30)) {
+                                    // set as something else fun like gold
+                                    set(block, Material.BEE_NEST);
+                                    // Beehive beehive = (Beehive) block.getState();
+                                }
+                        }
+                    }
+
+                    if (y >= 24) continue;
+
+                    // from this point on, anything below y=24
+
+                    // these are blocks which should be left alone before making the bottom nether layers, and/or should be edited beforehand
                     switch (blockData.getMaterial()) {
+                        // replace with nether gold ore around bedrock level, then just replace with netherrack otherwise
                         case LAVA:
                             if (y <= 5) {
                                 set(block, Material.NETHER_GOLD_ORE);
@@ -46,11 +74,16 @@ public class NetherPopulator extends BlockPopulator {
                                 set(block, Material.NETHERRACK);
                             }
                             break;
+                        // 40% of ancient debris is removed; ~10% replaced with gold blocks
                         case ANCIENT_DEBRIS:
-                            if (chance(50)) {
+                            if (chance(40)) {
+                                break;
+                            }
+                            if (chance(10)) {
                                 set(block, Material.GOLD_BLOCK);
                             }
                             continue;
+                        // these blocks are skipped and left as is
                         case BEDROCK:
                         case BLACKSTONE:
                         case NETHER_GOLD_ORE:
@@ -58,6 +91,9 @@ public class NetherPopulator extends BlockPopulator {
                             continue;
                     }
 
+                    // from this point on, all of the blocks below y=24 that werent already covered will be edited
+
+                    // some blocks near y=24 are skipped for a nice transition into the lower layers
                     if (y == 23) {
                         if (chance(60)) {
                             continue;
@@ -68,8 +104,11 @@ public class NetherPopulator extends BlockPopulator {
                         }
                     }
 
+                    // ANY blocks that reached this far will now be replaced with the various layers at the bottom of the map
+                    // depending on the biome
                     Biome biome = block.getBiome();
                     switch (biome) {
+                        // nether wastes: concrete layer
                         case NETHER_WASTES:
                             if (y <= 5) {
                                 set(block, Material.BLACK_CONCRETE);
@@ -145,6 +184,7 @@ public class NetherPopulator extends BlockPopulator {
                                 set(block, Material.ORANGE_CONCRETE);
                             }
                             continue;
+                        // basalt deltas: terracotta layer
                         case BASALT_DELTAS:
                             if (y <= 5) {
                                 set(block, Material.BLACK_TERRACOTTA);
@@ -220,6 +260,7 @@ public class NetherPopulator extends BlockPopulator {
                                 set(block, Material.ORANGE_TERRACOTTA);
                             }
                             continue;
+                        // crimson forest: gravel and clay layer
                         case CRIMSON_FOREST:
                             if (y <= 13) {
                                 set(block, Material.GRAVEL);
@@ -233,6 +274,7 @@ public class NetherPopulator extends BlockPopulator {
                                 set(block, Material.CLAY);
                             }
                             continue;
+                        // soul sand valley: sand and red sand layer
                         case SOUL_SAND_VALLEY:
                             if (y <= 7) {
                                 set(block, Material.RED_SAND);
@@ -246,6 +288,7 @@ public class NetherPopulator extends BlockPopulator {
                                 set(block, Material.SAND);
                             }
                             continue;
+                        // warped forest: sandstone and red sandstone layer
                         case WARPED_FOREST:
                             if (y <= 7) {
                                 set(block, Material.RED_SANDSTONE);
