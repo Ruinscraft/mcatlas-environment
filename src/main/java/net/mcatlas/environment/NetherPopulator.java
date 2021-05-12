@@ -1,15 +1,19 @@
 package net.mcatlas.environment;
 
-import org.bukkit.Bukkit;
-import org.bukkit.Chunk;
-import org.bukkit.Material;
-import org.bukkit.World;
+import org.bukkit.*;
+import org.bukkit.attribute.Attribute;
+import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.block.Beehive;
 import org.bukkit.block.Biome;
 import org.bukkit.block.Block;
+import org.bukkit.block.Chest;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Bee;
+import org.bukkit.entity.EntityType;
 import org.bukkit.generator.BlockPopulator;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.potion.PotionEffect;
+import org.bukkit.potion.PotionEffectType;
 
 import static net.mcatlas.environment.EnvironmentUtil.*;
 
@@ -42,11 +46,42 @@ public class NetherPopulator extends BlockPopulator {
                                 continue;
                             // gold blocks in bastions will have some beehives with angry bees interspersed
                             case GOLD_BLOCK:
-                                if (chance(30)) {
-                                    // set as something else fun like gold
+                                if (chance(20)) {
                                     set(block, Material.BEE_NEST);
-                                    // Beehive beehive = (Beehive) block.getState();
+                                    Beehive beehive = (Beehive) block.getState();
+                                    beehive.setMaxEntities(10);
+                                    if (chance(50)) {
+                                        for (int i = 0; i < 2; i++) {
+                                            Bee bee = (Bee) world.spawnEntity(block.getLocation(), EntityType.BEE);
+                                            bee.setAnger(999999); // ALWAYS ANGRY (maybe)
+                                            beehive.addEntity(bee);
+                                        }
+                                    }
+                                    if (chance(40)) {
+                                        Location spawnLocation = block.getLocation().clone().add(0, random.nextInt(10), 0);
+                                        spawnLocation.getBlock().setType(Material.AIR);
+                                        Bee bee = (Bee) world.spawnEntity(spawnLocation, EntityType.BEE);
+                                        bee.setAnger(999999);
+                                        bee.setHive(block.getLocation());
+                                        bee.addPotionEffect(new PotionEffect(PotionEffectType.FIRE_RESISTANCE, 999999, 1, true, false));
+                                        AttributeInstance attr = bee.getAttribute(Attribute.GENERIC_MAX_HEALTH);
+                                        attr.setBaseValue(200D);
+                                        bee.setHealth(200D);
+                                    }
                                 }
+                                continue;
+                            case CHEST:
+                                Chest chest = (Chest) block.getState();
+                                if (chance(10)) {
+                                    chest.getBlockInventory().addItem(new ItemStack(Material.PANDA_SPAWN_EGG, 1));
+                                }
+                                if (chance(20)) {
+                                    chest.getBlockInventory().addItem(new ItemStack(Material.NAUTILUS_SHELL, 1));
+                                    if (chance(50)) {
+                                        chest.getBlockInventory().addItem(new ItemStack(Material.NAUTILUS_SHELL, 1));
+                                    }
+                                }
+                                continue;
                         }
                     }
 
@@ -306,7 +341,6 @@ public class NetherPopulator extends BlockPopulator {
                 }
             }
         }
-        Runtime.getRuntime().gc();
     }
 
 }

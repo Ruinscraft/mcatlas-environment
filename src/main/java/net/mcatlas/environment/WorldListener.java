@@ -6,15 +6,13 @@ import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.Container;
-import org.bukkit.entity.Boat;
-import org.bukkit.entity.Entity;
-import org.bukkit.entity.EntityType;
-import org.bukkit.entity.Player;
+import org.bukkit.entity.*;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityDeathEvent;
+import org.bukkit.event.entity.EntityPortalEvent;
 import org.bukkit.event.inventory.InventoryOpenEvent;
 import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.event.player.PlayerMoveEvent;
@@ -92,6 +90,18 @@ public class WorldListener implements Listener {
 	// Remove (most) gold drops from pigmen
 	@EventHandler(priority = EventPriority.LOWEST)
 	public void onEntityDeath(EntityDeathEvent event) {
+		if (event.getEntityType() == EntityType.BEE) {
+			if (event.getEntity().getWorld().getEnvironment() != World.Environment.NETHER) {
+				return;
+			}
+
+			event.getDrops().add(new ItemStack(Material.NAUTILUS_SHELL, EnvironmentUtil.RANDOM.nextInt(2) + 1));
+			if (EnvironmentUtil.chance(50)) {
+				event.getDrops().add(new ItemStack(Material.NETHERITE_SCRAP, 1));
+			}
+			return;
+		}
+
 		if ((event.getEntityType() != EntityType.ZOMBIFIED_PIGLIN) &&
 				!(event.getEntityType() == EntityType.DROWNED)) return;
 
@@ -145,6 +155,13 @@ public class WorldListener implements Listener {
 			player.sendMessage(MSG_HEY + "You can only teleport back to the " 
 					+ "Overworld through a portal, so don't " 
 					+ "lose track of where your portal is!");
+		}
+	}
+
+	@EventHandler
+	public void onEntityPortal(EntityPortalEvent event) {
+		if (event.getEntityType() == EntityType.BEE) {
+			event.setCancelled(true);
 		}
 	}
 

@@ -8,6 +8,9 @@ import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.WeatherType;
 import org.bukkit.World;
+import org.bukkit.entity.Bee;
+import org.bukkit.entity.Entity;
+import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.generator.ChunkGenerator;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -61,6 +64,8 @@ public class EnvironmentPlugin extends JavaPlugin {
             }, 0L, 60L); // pull a new player to set weather every 3 seconds
             // speed of setting weather individually depends on how many people are on
         }
+
+        setupNetherBeeTask();
     }
 
     @Override
@@ -77,7 +82,6 @@ public class EnvironmentPlugin extends JavaPlugin {
         return apiKey;
     }
 
-
     // Handles all weather
     public void handleWeatherCycle() {
         Collection<? extends Player> players = Bukkit.getWorlds().get(0).getPlayers();
@@ -91,6 +95,27 @@ public class EnvironmentPlugin extends JavaPlugin {
         CompletableFuture.runAsync(() -> {
             setWeather(player);
         });
+    }
+
+    public void setupNetherBeeTask() {
+        Bukkit.getScheduler().runTaskTimer(this, () -> {
+            for (Player player : Bukkit.getOnlinePlayers()) {
+                if (player.getWorld().getEnvironment() != World.Environment.NETHER) {
+                    continue;
+                }
+
+                for (Entity entity : player.getNearbyEntities(60, 60, 60)) {
+                    if (entity.getType() != EntityType.BEE) {
+                        continue;
+                    }
+
+                    Bee bee = (Bee) entity;
+                    bee.setTarget(player);
+                    bee.setAnger(999999);
+                    bee.setHasStung(false);
+                }
+            }
+        }, 200, 200);
     }
 
     // RUN ASYNC or lag
