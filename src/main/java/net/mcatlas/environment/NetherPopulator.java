@@ -23,7 +23,6 @@ public class NetherPopulator extends BlockPopulator {
 
     @Override
     public void populate(World world, Random random, Chunk chunk) {
-        Bukkit.getLogger().info("CHUNK LOADED");
         for (int x = 0; x < 16; x++) {
             for (int z = 0; z < 16; z++) {
                 for (int y = 1; y < 240; y++) { // only y=23 and below
@@ -75,11 +74,25 @@ public class NetherPopulator extends BlockPopulator {
                                 if (chance(10)) {
                                     chest.getBlockInventory().addItem(new ItemStack(Material.PANDA_SPAWN_EGG, 1));
                                 }
-                                if (chance(20)) {
+                                if (chance(10)) {
                                     chest.getBlockInventory().addItem(new ItemStack(Material.NAUTILUS_SHELL, 1));
                                     if (chance(50)) {
                                         chest.getBlockInventory().addItem(new ItemStack(Material.NAUTILUS_SHELL, 1));
                                     }
+                                }
+
+                                int maxCoord = Math.abs(x) > Math.abs(z) ? Math.abs(x) : Math.abs(z);
+                                int multiplier = 1 + (maxCoord / 3000);
+                                if (multiplier > 5) multiplier = 5;
+                                for (ItemStack item : chest.getBlockInventory().getContents()) {
+                                    int newStackSize = multiplier * item.getAmount();
+                                    if (newStackSize > item.getMaxStackSize()) {
+                                        continue;
+                                    }
+                                    item.setAmount(newStackSize);
+                                }
+                                if (chance(80)) {
+                                    chest.getBlockInventory().remove(Material.ENCHANTED_GOLDEN_APPLE);
                                 }
                                 continue;
                         }
