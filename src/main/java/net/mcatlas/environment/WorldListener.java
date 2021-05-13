@@ -31,12 +31,9 @@ public class WorldListener implements Listener {
 
 	@EventHandler(priority = EventPriority.LOWEST)
 	public void onWorldInit(WorldInitEvent event) {
-		Bukkit.getLogger().info("WORLD IS INIT OMG");
 		World world = event.getWorld();
 
-		Bukkit.getLogger().info("" + world.getEnvironment());
 		if (world.getEnvironment() == World.Environment.NETHER) {
-			Bukkit.getLogger().info("!!!! Ok its added!!!!!!!!!!!!!!!!!");
 			world.getPopulators().add(new NetherPopulator());
 		}
 	}

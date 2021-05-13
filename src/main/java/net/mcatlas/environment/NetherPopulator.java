@@ -84,7 +84,14 @@ public class NetherPopulator extends BlockPopulator {
                                 int maxCoord = Math.abs(x) > Math.abs(z) ? Math.abs(x) : Math.abs(z);
                                 int multiplier = 1 + (maxCoord / 3000);
                                 if (multiplier > 5) multiplier = 5;
+
+                                if (chest == null || chest.getBlockInventory() == null) {
+                                    return;
+                                }
+
                                 for (ItemStack item : chest.getBlockInventory().getContents()) {
+                                    if (item == null || item.getType() == Material.AIR) continue;
+
                                     int newStackSize = multiplier * item.getAmount();
                                     if (newStackSize > item.getMaxStackSize()) {
                                         continue;
@@ -94,6 +101,7 @@ public class NetherPopulator extends BlockPopulator {
                                 if (chance(80)) {
                                     chest.getBlockInventory().remove(Material.ENCHANTED_GOLDEN_APPLE);
                                 }
+
                                 continue;
                         }
                     }
