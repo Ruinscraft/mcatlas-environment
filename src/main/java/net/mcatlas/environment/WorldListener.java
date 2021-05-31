@@ -15,6 +15,7 @@ import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.entity.EntityPortalEvent;
 import org.bukkit.event.inventory.InventoryOpenEvent;
 import org.bukkit.event.inventory.InventoryType;
+import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerPortalEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
@@ -36,6 +37,15 @@ public class WorldListener implements Listener {
 		if (world.getEnvironment() == World.Environment.NETHER) {
 			world.getPopulators().add(new NetherPopulator());
 		}
+	}
+
+	@EventHandler
+	public void onPlayerJoin(PlayerJoinEvent event) {
+		World world = event.getPlayer().getWorld();
+		if (world.getEnvironment() != World.Environment.NORMAL) {
+			return;
+		}
+		EnvironmentPlugin.get().addPlayerToQueue(event.getPlayer(), EnvironmentPlugin.WeatherPriority.JOIN);
 	}
 
 	// When block is placed
