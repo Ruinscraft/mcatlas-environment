@@ -36,6 +36,8 @@ public class WorldListener implements Listener {
 
 		if (world.getEnvironment() == World.Environment.NETHER) {
 			world.getPopulators().add(new NetherPopulator());
+		} else if (world.getEnvironment() == World.Environment.NORMAL) {
+			// EnvironmentUtil.createTornado(new Location(Bukkit.getWorlds().get(0), 500, 100, 500));
 		}
 	}
 

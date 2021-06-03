@@ -5,19 +5,19 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.ComponentBuilder;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextColor;
-import net.md_5.bungee.api.ChatMessageType;
-import net.md_5.bungee.api.chat.TextComponent;
 import org.apache.commons.lang.WordUtils;
 import org.bukkit.*;
+import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Bee;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.generator.ChunkGenerator;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.scheduler.BukkitRunnable;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -71,7 +71,11 @@ public class EnvironmentPlugin extends JavaPlugin {
             currentWeatherLocations = new HashMap<UUID, Location>();
             allWeatherPlayers = new HashSet<>();
 
-            getCommand("weatherhere").setExecutor(new TestingCommand());
+            for (Player player : getServer().getOnlinePlayers()) {
+                addPlayerToQueue(player, WeatherPriority.ONLINE);
+            }
+
+            getCommand("weatherhere").setExecutor(new WeatherHereCommand());
             Bukkit.getScheduler().runTaskTimer(this, () -> {
                 handleWeatherCycle();
             }, 20L, 60L); // pull a new player to set weather every 3 seconds
@@ -166,12 +170,18 @@ public class EnvironmentPlugin extends JavaPlugin {
                 Color color = EnvironmentUtil.getColorFromTemperature(fahrenheit);
                 TextColor tempColor = TextColor.color(color.getRed(), color.getGreen(), color.getBlue());
                 String temperature = tempColor + "" + fahrenheit + "F" + ChatColor.GRAY + "/" + tempColor + "" + celsius + "C";
-                player.sendActionBar(Component.text(fahrenheit + "F").color(tempColor)
-                        .append(Component.text("/").color(NamedTextColor.GRAY)
-                        .append(Component.text(celsius + "C").color(tempColor)
-                        .append(Component.text(" - " + (int) weatherData.windSpeed + "mph Wind" + " - " + weatherData.weatherFullDesc)
-                                .color(NamedTextColor.GRAY)
-                        ))));
+
+                Component text = Component.text(fahrenheit + "F").color(tempColor)
+                                    .append(Component.text("/").color(NamedTextColor.GRAY)
+                                    .append(Component.text(celsius + "C").color(tempColor)
+                                    .append(Component.text(" - " + (int) weatherData.windSpeed + "mph Wind" + " - " + weatherData.weatherFullDesc)
+                                        .color(NamedTextColor.GRAY)
+                                )));
+                for (int tick = 0; tick <= 25; tick += 5) {
+                    Bukkit.getScheduler().runTaskLater(this, () -> {
+                        player.sendActionBar(text);
+                    }, tick);
+                }
             }
         }
     }
@@ -219,6 +229,8 @@ public class EnvironmentPlugin extends JavaPlugin {
             condition = getCondition(weatherData.weatherDesc);
         }
 
+        final long lastUpdated = weatherPlayer.getLastUpdated();
+
         switch (condition) {
             case CLEAR: {
                 Bukkit.getScheduler().runTask(this, () -> {
@@ -227,6 +239,111 @@ public class EnvironmentPlugin extends JavaPlugin {
                 break;
             }
             case STORM: // maybe one day add thunderstorm-per-user implementation? idk
+                Bukkit.getScheduler().runTask(this, () -> {
+                    player.setPlayerWeather(WeatherType.DOWNFALL);
+                });
+
+                new BukkitRunnable() {
+                    @Override
+                    public void run() {
+                        if (!player.isOnline()) {
+                            this.cancel();
+                            return;
+                        }
+
+                        if (lastUpdated != weatherPlayer.getLastUpdated()) {
+                            this.cancel();
+                            return;
+                        }
+
+                        if (EnvironmentUtil.RANDOM.nextInt(4) < 3) {
+                            return;
+                        }
+
+                        double radian = EnvironmentUtil.RANDOM.nextDouble() * (Math.PI * 2);
+
+                        player.playSound(player.getLocation().clone().add(Math.sin(radian) * 25, 0, Math.cos(radian) * 25),
+                                Sound.ENTITY_LIGHTNING_BOLT_THUNDER, SoundCategory.WEATHER, 2F, .9F);
+                    }
+                }.runTaskTimer(this, 0L, 5 * 20L);
+                break;
+            case SAND: {
+                BlockData sandDustData = Material.SAND.createBlockData();
+                new BukkitRunnable() {
+                    @Override
+                    public void run() {
+                        if (!player.isOnline()) {
+                            this.cancel();
+                            return;
+                        }
+
+                        if (lastUpdated != weatherPlayer.getLastUpdated()) {
+                            this.cancel();
+                            return;
+                        }
+
+                        player.spawnParticle(Particle.FALLING_DUST,
+                                location.clone().add((EnvironmentUtil.RANDOM.nextDouble() - .5) * 30, (EnvironmentUtil.RANDOM.nextDouble() - .25) * 10, (EnvironmentUtil.RANDOM.nextDouble() - .5) * 30),
+                                1, sandDustData);
+                    }
+                }.runTaskTimer(this, 0L, 1);
+                break;
+            }
+            case SMOKE: {
+                new BukkitRunnable() {
+                    @Override
+                    public void run() {
+                        if (!player.isOnline()) {
+                            this.cancel();
+                            return;
+                        }
+
+                        if (lastUpdated != weatherPlayer.getLastUpdated()) {
+                            this.cancel();
+                            return;
+                        }
+
+                        Particle.DustOptions dustOptions = new Particle.DustOptions(org.bukkit.Color.fromRGB(128, 128, 128), 2);
+
+                        player.spawnParticle(Particle.SMOKE_LARGE,
+                                location.clone().add((EnvironmentUtil.RANDOM.nextDouble() - .5) * 30, (EnvironmentUtil.RANDOM.nextDouble() - .25) * 10, (EnvironmentUtil.RANDOM.nextDouble() - .5) * 30),
+                                0);
+                        player.spawnParticle(Particle.SMOKE_NORMAL,
+                                location.clone().add((EnvironmentUtil.RANDOM.nextDouble() - .5) * 30, (EnvironmentUtil.RANDOM.nextDouble() - .25) * 10, (EnvironmentUtil.RANDOM.nextDouble() - .5) * 30),
+                                0);
+                        player.spawnParticle(Particle.REDSTONE,
+                                location.clone().add((EnvironmentUtil.RANDOM.nextDouble() - .5) * 30, (EnvironmentUtil.RANDOM.nextDouble() - .25) * 10, (EnvironmentUtil.RANDOM.nextDouble() - .5) * 30),
+                                1, dustOptions);
+                    }
+                }.runTaskTimer(this, 0L, 3);
+                break;
+            }
+            case MIST: {
+                new BukkitRunnable() {
+                    @Override
+                    public void run() {
+                        if (!player.isOnline()) {
+                            this.cancel();
+                            return;
+                        }
+
+                        if (lastUpdated != weatherPlayer.getLastUpdated()) {
+                            this.cancel();
+                            return;
+                        }
+
+                        Particle.DustOptions dustOptions = new Particle.DustOptions(org.bukkit.Color.fromRGB(128, 200, 255), 1);
+
+                        player.spawnParticle(Particle.DRIP_WATER,
+                                location.clone().add((EnvironmentUtil.RANDOM.nextDouble() - .5) * 30, (EnvironmentUtil.RANDOM.nextDouble() - .25) * 10, (EnvironmentUtil.RANDOM.nextDouble() - .5) * 30),
+                                1);
+                        player.spawnParticle(Particle.REDSTONE,
+                                location.clone().add((EnvironmentUtil.RANDOM.nextDouble() - .5) * 30, (EnvironmentUtil.RANDOM.nextDouble() - .25) * 10, (EnvironmentUtil.RANDOM.nextDouble() - .5) * 30),
+                                1, dustOptions);
+                    }
+                }.runTaskTimer(this, 0L, 4);
+                break;
+            }
             case RAIN: {
                 Bukkit.getScheduler().runTask(this, () -> {
                     player.setPlayerWeather(WeatherType.DOWNFALL);
@@ -235,24 +352,27 @@ public class EnvironmentPlugin extends JavaPlugin {
             }
         }
 
-        final long lastUpdated = weatherPlayer.getLastUpdated();
+        if (weatherData.windSpeed > 10 || condition == Condition.STORM || condition == Condition.SAND || condition == Condition.SMOKE) {
+            new BukkitRunnable() {
+                @Override
+                public void run() {
+                    if (!player.isOnline()) {
+                        cancel();
+                        return;
+                    }
 
-        if (weatherData.windSpeed > 10) {
-            Bukkit.getScheduler().runTaskTimer(this, () -> {
-                if (!player.isOnline()) {
-                    return;
+                    if (lastUpdated != weatherPlayer.getLastUpdated()) {
+                        cancel();
+                        return;
+                    }
+
+                    player.playSound(player.getLocation(), Sound.ITEM_ELYTRA_FLYING, SoundCategory.WEATHER, (float) (0.15F + ((weatherData.windSpeed - 10) / 80)), (float) 0.8);
                 }
-
-                if (lastUpdated != weatherPlayer.getLastUpdated()) {
-                    return;
-                }
-
-                player.playSound(player.getLocation(), Sound.ITEM_ELYTRA_FLYING, SoundCategory.AMBIENT, (float) (0.1F + ((weatherData.windSpeed - 10) / 50)), (float) 0.8);
-            }, 0L, 8 * 20L);
+            }.runTaskTimer(this, 10L, 8 * 20L);
         }
-
     }
 
+    // adds player to the queue for their weather to be updated
     public void addPlayerToQueue(Player player, WeatherPriority priority) {
         WeatherPlayer weatherPlayer = null;
         for (WeatherPlayer otherPlayer : allWeatherPlayers) {
@@ -261,6 +381,10 @@ public class EnvironmentPlugin extends JavaPlugin {
                 weatherPlayer.setScore(priority.score);
                 break;
             }
+        }
+
+        if (player == null) {
+            return;
         }
 
         if (weatherPlayer == null) {
@@ -287,15 +411,18 @@ public class EnvironmentPlugin extends JavaPlugin {
             case "Thunderstorm":
             case "Tornado":
                 return Condition.STORM;
-            case "Clear":
-            case "Clouds":
             case "Haze":
             case "Fog":
             case "Mist":
+                return Condition.MIST;
+            case "Sand":
+                return Condition.SAND;
             case "Smoke":
             case "Dust":
-            case "Sand":
             case "Ash":
+                return Condition.SMOKE;
+            case "Clear":
+            case "Clouds":
             default:
                 return Condition.CLEAR;
         }
@@ -322,7 +449,6 @@ public class EnvironmentPlugin extends JavaPlugin {
         if (root == null || root.isJsonNull()) {
             return null;
         }
-
 
         JsonObject rootobj = root.getAsJsonObject();
 
@@ -375,7 +501,6 @@ public class EnvironmentPlugin extends JavaPlugin {
         String urlString = "http://api.openweathermap.org/data/2.5/weather?lat="
                 + coord.y + "&lon=" + coord.x + "&appid="
                 + EnvironmentPlugin.get().getAPIKey();
-        System.out.println(urlString);
         URL url = null;
         HttpURLConnection connection = null;
 
@@ -449,6 +574,9 @@ public class EnvironmentPlugin extends JavaPlugin {
     public enum Condition {
         CLEAR,
         RAIN,
+        MIST,
+        SAND,
+        SMOKE,
         STORM;
     }
 

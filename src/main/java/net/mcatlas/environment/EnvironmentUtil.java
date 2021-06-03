@@ -1,10 +1,10 @@
 package net.mcatlas.environment;
 
-import org.bukkit.ChatColor;
-import org.bukkit.Material;
+import org.bukkit.*;
 import org.bukkit.block.Block;
 
 import java.awt.*;
+import java.awt.Color;
 import java.util.Random;
 
 public class EnvironmentUtil {
@@ -15,6 +15,8 @@ public class EnvironmentUtil {
             + ChatColor.BOLD + "Hey! " + ChatColor.RESET;
     public static final String MSG_WHOOSH = ChatColor.RED + ""
             + ChatColor.BOLD + "WHOOOSH. " + ChatColor.RESET;
+
+    public static String[] directions = { "N", "NE", "E", "SE", "S", "SW", "W", "NW", "N" };
 
     public static Block set(Block block, Material material) {
         block.setType(material, false);
@@ -79,11 +81,34 @@ public class EnvironmentUtil {
             b = 255;
         }
 
-        System.out.println(r + " " + g + " " + b);
         Color color = new Color((int) r, (int) g, (int) b);
-        System.out.println(color);
 
         return color;
+    }
+
+    public static void createTornado(Location location) {
+        location.setY(location.getWorld().getHighestBlockYAt(location) + 1.25);
+
+        World world = location.getWorld();
+
+        Bukkit.getScheduler().runTaskTimerAsynchronously(EnvironmentPlugin.get(), () -> {
+            world.spawnParticle(Particle.EXPLOSION_NORMAL, location.clone().add((RANDOM.nextDouble() - .5) * 3, 0, (RANDOM.nextDouble() - .5) * 4), 1);
+            world.spawnParticle(Particle.EXPLOSION_LARGE, location.clone().add((RANDOM.nextDouble() - .5) * 3, 0, (RANDOM.nextDouble() - .5) * 4), 1);
+        }, 10, 2);
+
+        Particle.DustOptions dustOptions = new Particle.DustOptions(org.bukkit.Color.fromRGB(128, 128, 128), 3);
+
+        Bukkit.getScheduler().runTaskTimerAsynchronously(EnvironmentPlugin.get(), () -> {
+            for (double height = .75; height < 16; height += .75) {
+                double width = 1.25 + ((height * height) / 40);
+                double radian = RANDOM.nextDouble() * (Math.PI * 2);
+                world.spawnParticle(Particle.REDSTONE, location.clone().add(Math.sin(radian) * width, height,  Math.cos(radian) * width), 1, dustOptions);
+            }
+        }, 10, 3);
+    }
+
+    public static String degreesToCardinal(double degrees) {
+        return directions[(int) Math.round(((double) degrees % 360) / 45)];
     }
 
     /**
