@@ -22,14 +22,13 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.awt.Color;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 /**
  * Handles elements of the MCAtlas world itself.
@@ -46,6 +45,8 @@ public class EnvironmentPlugin extends JavaPlugin {
     private PriorityQueue<WeatherPlayer> playerQueue;
 
     private Map<UUID, Location> currentWeatherLocations;
+
+    private Set<Tornado> tornadoes;
 
     public static EnvironmentPlugin get() {
         return plugin;
@@ -70,6 +71,7 @@ public class EnvironmentPlugin extends JavaPlugin {
             playerQueue = new PriorityQueue<>();
             currentWeatherLocations = new HashMap<UUID, Location>();
             allWeatherPlayers = new HashSet<>();
+            tornadoes = new HashSet<Tornado>();
 
             for (Player player : getServer().getOnlinePlayers()) {
                 addPlayerToQueue(player, WeatherPriority.ONLINE);
@@ -88,6 +90,10 @@ public class EnvironmentPlugin extends JavaPlugin {
             Bukkit.getScheduler().runTaskTimer(this, () -> {
                 sendPlayerWeatherMessages();
             }, 20 * 20L, 20 * 30L);
+
+            Bukkit.getScheduler().runTaskTimer(this, () -> {
+                launchPlayersInTornado();
+            }, 10 * 20L, 20L);
         }
     }
 
@@ -103,6 +109,206 @@ public class EnvironmentPlugin extends JavaPlugin {
 
     public String getAPIKey() {
         return apiKey;
+    }
+
+    public void launchPlayersInTornado() {
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            if (player.getWorld().getEnvironment() != World.Environment.NORMAL) {
+                continue;
+            }
+
+            Location location = player.getLocation();
+            int x = location.getBlockX();
+            if (x > 0) continue; // eastern hemisphere
+            int z = location.getBlockZ();
+            if (z > 0) continue; // southern hemisphere
+            // now only players in north and west hemisphere. USA general area
+            int y = location.getWorld().getHighestBlockYAt(location);
+            int playerY = location.getBlockY();
+
+            for (Tornado tornado : tornadoes) {
+                Location tornadoLoc = tornado.getLocation();
+
+                tornadoLoc.setY(y);
+                location.setY(y);
+
+                double dist = location.distance(tornadoLoc);
+                if (dist < 5 && playerY - y < 20 && playerY - y > -5) { // 5 blocks from middle of tornado; 20 blocks above or 5 blocks below bottom of tornado
+                    // send them flying
+                    org.bukkit.util.Vector dir = location.getDirection().multiply(-2);
+                    player.setVelocity(new org.bukkit.util.Vector(dir.getX(), 20 + (10 * (5 / dist)), dir.getZ()));
+                }
+            }
+        }
+    }
+
+    public void updateTornadoes() {
+        Set<Tornado> updatedTornadoes = extractTornadoInformation();
+        if (updatedTornadoes.isEmpty()) return;
+
+        // this.tornadoes = updatedTornadoes.stream().filter(t -> this.tornadoes.contains(t)).collect(Collectors.toSet());
+        Set<Tornado> deadTornadoes = new HashSet<>();
+        Set<Tornado> newTornadoes = new HashSet<>(updatedTornadoes);
+        for (Tornado tornado : this.tornadoes) {
+            double minDist = 999999;
+            for (Tornado updatedTornado : updatedTornadoes) {
+                double distance = updatedTornado.getLocation().distance(tornado.getLocation());
+                if (updatedTornado.equals(tornado) && distance < minDist) {
+                    tornado.update(updatedTornado);
+                    minDist = distance;
+                    newTornadoes.remove(updatedTornado);
+                }
+            }
+            if (minDist == 999999) {
+                System.out.println("Added to dead");
+                deadTornadoes.add(tornado);
+            }
+        }
+        for (Tornado dead : deadTornadoes) {
+            dead.cancel();
+        }
+        this.tornadoes.removeAll(deadTornadoes);
+        this.tornadoes.addAll(newTornadoes);
+
+        for (Tornado tornado : newTornadoes) {
+            System.out.println("Formed one " + tornado.getLocation().getBlockX() + " " + tornado.getLocation().getBlockZ());
+            tornado.spawn();
+        }
+        System.out.println(tornadoes.size() + " tornadoes");
+
+        if (tornadoes.size() > 0) {
+            String locations = "";
+            for (Tornado tornado : this.tornadoes) {
+                locations += tornado.getArea() + "; ";
+            }
+            locations = locations.substring(0, locations.length() - 2);
+            Bukkit.broadcastMessage(ChatColor.RED + "" + ChatColor.BOLD +
+                    "Tornado Warning in effect for the following areas: " + ChatColor.RESET + "" + ChatColor.RED + locations);
+        }
+        // TODO get alerts and alert things, create polygons, find towns in alert zones etc
+    }
+
+    public Set<Tornado> extractTornadoInformation() {
+        JsonElement jsonElement = getAlertData();
+        if (jsonElement == null || jsonElement.isJsonNull()) return null;
+
+        JsonObject rootobj = jsonElement.getAsJsonObject();
+
+        Set<Tornado> tornadoes = new HashSet<>();
+
+        JsonArray alerts = rootobj.getAsJsonArray("features");
+        for (JsonElement alert : alerts) {
+            JsonObject alertObj = alert.getAsJsonObject();
+            if (alertObj == null || alertObj.isJsonNull()) {
+                System.out.println("Alert Null");
+                continue;
+            }
+            JsonObject properties = alertObj.get("properties").getAsJsonObject();
+            JsonElement eventObj = properties.get("event");
+            if (eventObj == null || eventObj.isJsonNull()) {
+                System.out.println("Event Null");
+                continue;
+            }
+            String event = eventObj.getAsString();
+            if (!event.equals("Tornado Warning")) continue;
+
+            JsonElement areaObj = properties.get("areaDesc");
+            String area = "";
+            if (areaObj == null || areaObj.isJsonNull()) {
+                System.out.println("Area Null");
+                area = "Unknown";
+            } else {
+                area = areaObj.getAsString();
+            }
+
+            JsonObject parameters = properties.get("parameters").getAsJsonObject();
+
+            JsonArray eventMotion = parameters.getAsJsonArray("eventMotionDescription");
+            if (eventMotion == null || eventMotion.isJsonNull()) {
+                System.out.println("Event Motion Null");
+                continue;
+            }
+
+            JsonElement descElement = eventMotion.get(0);
+            if (descElement == null || descElement.isJsonNull()) {
+                System.out.println("Event Desc Null");
+                continue;
+            }
+            String desc = descElement.getAsString();
+            String coords = desc.substring(desc.lastIndexOf("...") + 3)
+                    .replace("...", "");
+
+            String latStr = coords.substring(0, coords.indexOf(","));
+            double lat = Double.valueOf(latStr);
+            String lonStr = coords.substring(coords.indexOf(",") + 1);
+            double lon = Double.valueOf(lonStr);
+
+            Coordinate coord = this.getMCFromLife(lat, lon);
+
+            Location location = new Location(Bukkit.getWorlds().get(0), coord.x, 64, coord.y);
+            Tornado tornado = new Tornado(location, area);
+            tornadoes.add(tornado);
+        }
+
+        return tornadoes;
+    }
+
+
+    public JsonElement getAlertData() {
+        JsonElement json = null;
+        try (Reader reader = new InputStreamReader(new FileInputStream("plugins/mcatlas-environment/test.json"), "UTF-8")) {
+            json = new JsonParser().parse(reader);
+        } catch (Exception e) {
+            // do something
+            this.getLogger().warning("FILE NOT FOUND!!!");
+            e.printStackTrace();
+            return null;
+        }
+        return json;
+    }
+
+    @Nullable
+    public JsonElement getActualAlertData() {
+        String urlString = "https://api.weather.gov/alerts/active";
+        URL url = null;
+        HttpURLConnection connection = null;
+
+        try {
+            url = new URL(urlString);
+            connection = (HttpURLConnection) url.openConnection();
+            connection.setRequestMethod("GET");
+            connection.connect();
+        } catch (Exception e) { // any issue with the connection, like an error code
+            int code = 0;
+            try {
+                code = connection.getResponseCode();
+            } catch (IOException e1) {
+                e1.printStackTrace();
+            }
+            if (code == 500 && apiOffline) { // api is known to be offline
+                return null;
+            } else if (code == 500 && !apiOffline) { // api is not known to be offline
+                Bukkit.getLogger().warning("Gov weather api not work???");
+                apiOffline = true;
+                return null;
+            } else if (code == 400) { // bad request (happens occasionally)
+                return null;
+            } else { // anything else
+                e.printStackTrace();
+                return null;
+            }
+        }
+
+        JsonParser jp = new JsonParser();
+        JsonElement root;
+        try {
+            root = jp.parse(new InputStreamReader((InputStream) connection.getContent()));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+
+        return root;
     }
 
     public void setupNetherBees() {
@@ -547,6 +753,12 @@ public class EnvironmentPlugin extends JavaPlugin {
         double x = (mcX / scaling);
         double y = (mcY / scaling) * -1;
         return new Coordinate(x, y);
+    }
+
+    public Coordinate getMCFromLife(double lat, double lon) {
+        double x = (lon * scaling);
+        double z = (lat * scaling) * -1;
+        return new Coordinate(x, z);
     }
 
     public static boolean isOverworld(World world) {

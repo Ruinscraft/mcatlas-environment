@@ -93,10 +93,11 @@ public class EnvironmentUtil {
 
         Bukkit.getScheduler().runTaskTimerAsynchronously(EnvironmentPlugin.get(), () -> {
             world.spawnParticle(Particle.EXPLOSION_NORMAL, location.clone().add((RANDOM.nextDouble() - .5) * 3, 0, (RANDOM.nextDouble() - .5) * 4), 1);
+            world.spawnParticle(Particle.EXPLOSION_NORMAL, location.clone().add((RANDOM.nextDouble() - .5) * 3, 0, (RANDOM.nextDouble() - .5) * 4), 1);
             world.spawnParticle(Particle.EXPLOSION_LARGE, location.clone().add((RANDOM.nextDouble() - .5) * 3, 0, (RANDOM.nextDouble() - .5) * 4), 1);
         }, 10, 2);
 
-        Particle.DustOptions dustOptions = new Particle.DustOptions(org.bukkit.Color.fromRGB(128, 128, 128), 3);
+        Particle.DustOptions dustOptions = new Particle.DustOptions(org.bukkit.Color.fromRGB(128, 128, 128), 5);
 
         Bukkit.getScheduler().runTaskTimerAsynchronously(EnvironmentPlugin.get(), () -> {
             for (double height = .75; height < 16; height += .75) {

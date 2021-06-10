@@ -38,6 +38,10 @@ public class WorldListener implements Listener {
 			world.getPopulators().add(new NetherPopulator());
 		} else if (world.getEnvironment() == World.Environment.NORMAL) {
 			// EnvironmentUtil.createTornado(new Location(Bukkit.getWorlds().get(0), 500, 100, 500));
+			// every 10 minutes updates tornado locations
+			Bukkit.getScheduler().runTaskTimer(EnvironmentPlugin.get(), () -> {
+				EnvironmentPlugin.get().updateTornadoes();
+			}, 0L, 20 * 60 * 1L);
 		}
 	}
 
