@@ -18,7 +18,7 @@ public class Tornado {
     private boolean cancelled = false;
 
     public static final Particle.DustOptions DUST_OPTIONS =
-            new Particle.DustOptions(org.bukkit.Color.fromRGB(128, 128, 128), 5);
+            new Particle.DustOptions(org.bukkit.Color.fromRGB(128, 128, 128), 7);
 
     public Tornado(Location location, String area) {
         this.location = location;

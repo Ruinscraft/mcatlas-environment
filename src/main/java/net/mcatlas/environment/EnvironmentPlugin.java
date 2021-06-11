@@ -180,7 +180,7 @@ public class EnvironmentPlugin extends JavaPlugin {
                         }
                     }
                     // random parts of inventory get blown away when entering tornado
-                    if (chance(20)) {
+                    if (chance(25)) {
                         int invSize = player.getInventory().getSize();
                         boolean someBlownAway = false;
                         for (int i = 0; i < RANDOM.nextInt(5); i++) {
@@ -390,7 +390,7 @@ public class EnvironmentPlugin extends JavaPlugin {
             json = new JsonParser().parse(reader);
         } catch (Exception e) {
             // do something
-            this.getLogger().warning("FILE NOT FOUND!!!");
+            this.getLogger().warning("FILE NOT FOUND");
             e.printStackTrace();
             return null;
         }
