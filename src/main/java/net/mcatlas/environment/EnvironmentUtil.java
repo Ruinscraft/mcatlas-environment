@@ -86,30 +86,54 @@ public class EnvironmentUtil {
         return color;
     }
 
-    public static void createTornado(Location location) {
-        location.setY(location.getWorld().getHighestBlockYAt(location) + 1.25);
-
-        World world = location.getWorld();
-
-        Bukkit.getScheduler().runTaskTimerAsynchronously(EnvironmentPlugin.get(), () -> {
-            world.spawnParticle(Particle.EXPLOSION_NORMAL, location.clone().add((RANDOM.nextDouble() - .5) * 3, 0, (RANDOM.nextDouble() - .5) * 4), 1);
-            world.spawnParticle(Particle.EXPLOSION_NORMAL, location.clone().add((RANDOM.nextDouble() - .5) * 3, 0, (RANDOM.nextDouble() - .5) * 4), 1);
-            world.spawnParticle(Particle.EXPLOSION_LARGE, location.clone().add((RANDOM.nextDouble() - .5) * 3, 0, (RANDOM.nextDouble() - .5) * 4), 1);
-        }, 10, 2);
-
-        Particle.DustOptions dustOptions = new Particle.DustOptions(org.bukkit.Color.fromRGB(128, 128, 128), 5);
-
-        Bukkit.getScheduler().runTaskTimerAsynchronously(EnvironmentPlugin.get(), () -> {
-            for (double height = .75; height < 16; height += .75) {
-                double width = 1.25 + ((height * height) / 40);
-                double radian = RANDOM.nextDouble() * (Math.PI * 2);
-                world.spawnParticle(Particle.REDSTONE, location.clone().add(Math.sin(radian) * width, height,  Math.cos(radian) * width), 1, dustOptions);
-            }
-        }, 10, 3);
-    }
-
     public static String degreesToCardinal(double degrees) {
         return directions[(int) Math.round(((double) degrees % 360) / 45)];
+    }
+
+    public static int getHighestSolidBlockYAt(Location location) {
+        location = location.clone();
+        location.setY(255);
+        return getHighestSolidBlockY(location);
+    }
+
+    private static int getHighestSolidBlockY(Location location) {
+        int highestY = location.getWorld().getHighestBlockYAt(location);
+        Block highest = location.getWorld().getBlockAt(location);
+        if (highestY > location.getBlockY() && !isNotSolid(highest.getType())) {
+            return location.getBlockY();
+        }
+        location.setY(location.getBlockY() - 1);
+        return getHighestSolidBlockY(location);
+    }
+
+    private static boolean isNotSolid(Material material) {
+        switch (material) {
+            case OAK_LEAVES:
+            case BIRCH_LEAVES:
+            case ACACIA_LEAVES:
+            case DARK_OAK_LEAVES:
+            case JUNGLE_LEAVES:
+            case SPRUCE_LEAVES:
+            case FERN:
+            case TALL_GRASS:
+            case GRASS:
+            case LARGE_FERN:
+            case PEONY:
+            case ROSE_BUSH:
+            case LILAC:
+            case SUGAR_CANE:
+            case SUNFLOWER:
+            case AIR:
+            // it's solid but tornadoes look better like this
+            case OAK_LOG:
+            case BIRCH_LOG:
+            case SPRUCE_LOG:
+            case JUNGLE_LOG:
+            case ACACIA_LOG:
+            case DARK_OAK_LOG:
+                return true;
+        }
+        return false;
     }
 
     /**

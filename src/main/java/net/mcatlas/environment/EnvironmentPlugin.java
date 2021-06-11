@@ -10,12 +10,14 @@ import net.kyori.adventure.text.format.TextColor;
 import org.apache.commons.lang.WordUtils;
 import org.bukkit.*;
 import org.bukkit.block.data.BlockData;
-import org.bukkit.entity.Bee;
-import org.bukkit.entity.Entity;
-import org.bukkit.entity.EntityType;
-import org.bukkit.entity.Player;
+import org.bukkit.boss.BarColor;
+import org.bukkit.boss.BarFlag;
+import org.bukkit.boss.BarStyle;
+import org.bukkit.boss.BossBar;
+import org.bukkit.entity.*;
 import org.bukkit.generator.ChunkGenerator;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.jetbrains.annotations.NotNull;
@@ -26,9 +28,12 @@ import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.time.Duration;
+import java.time.LocalDate;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
+
+import static net.mcatlas.environment.EnvironmentUtil.*;
 
 /**
  * Handles elements of the MCAtlas world itself.
@@ -47,6 +52,8 @@ public class EnvironmentPlugin extends JavaPlugin {
     private Map<UUID, Location> currentWeatherLocations;
 
     private Set<Tornado> tornadoes;
+
+    private BossBar tornadoBossBar;
 
     public static EnvironmentPlugin get() {
         return plugin;
@@ -91,8 +98,18 @@ public class EnvironmentPlugin extends JavaPlugin {
                 sendPlayerWeatherMessages();
             }, 20 * 20L, 20 * 30L);
 
+            tornadoBossBar = Bukkit.createBossBar(ChatColor.WHITE + "" + ChatColor.BOLD + "Tornado Warning", BarColor.RED, BarStyle.SOLID, BarFlag.DARKEN_SKY);
+
             Bukkit.getScheduler().runTaskTimer(this, () -> {
-                launchPlayersInTornado();
+                tornadoBossBar.setTitle(ChatColor.WHITE + "" + ChatColor.BOLD + "Tornado Warning");
+            }, 0L, 40L);
+
+            Bukkit.getScheduler().runTaskTimer(this, () -> {
+                tornadoBossBar.setTitle(ChatColor.DARK_RED + "" + ChatColor.BOLD + "Tornado Warning");
+            }, 20L, 40L);
+
+            Bukkit.getScheduler().runTaskTimer(this, () -> {
+                launchEntitiesInTornado();
             }, 10 * 20L, 20L);
         }
     }
@@ -111,7 +128,7 @@ public class EnvironmentPlugin extends JavaPlugin {
         return apiKey;
     }
 
-    public void launchPlayersInTornado() {
+    public void launchEntitiesInTornado() {
         for (Player player : Bukkit.getOnlinePlayers()) {
             if (player.getWorld().getEnvironment() != World.Environment.NORMAL) {
                 continue;
@@ -126,6 +143,8 @@ public class EnvironmentPlugin extends JavaPlugin {
             int y = location.getWorld().getHighestBlockYAt(location);
             int playerY = location.getBlockY();
 
+            boolean inBossBarZone = false;
+
             for (Tornado tornado : tornadoes) {
                 Location tornadoLoc = tornado.getLocation();
 
@@ -133,34 +152,136 @@ public class EnvironmentPlugin extends JavaPlugin {
                 location.setY(y);
 
                 double dist = location.distance(tornadoLoc);
+                if (dist < 0.1) dist = .1; // if its 0 or near 0 it will be an issue for the vector
                 if (dist < 5 && playerY - y < 20 && playerY - y > -5) { // 5 blocks from middle of tornado; 20 blocks above or 5 blocks below bottom of tornado
+                    inBossBarZone = true;
+
                     // send them flying
-                    org.bukkit.util.Vector dir = location.getDirection().multiply(-2);
-                    player.setVelocity(new org.bukkit.util.Vector(dir.getX(), 20 + (10 * (5 / dist)), dir.getZ()));
+                    org.bukkit.util.Vector dir = location.getDirection().multiply(2);
+                    org.bukkit.util.Vector vector = new org.bukkit.util.Vector(dir.getX(), 20 + (1 * (5 / dist)), dir.getZ());
+                    player.setVelocity(vector);
+
+                    for (int i = 1; i < RANDOM.nextInt(20); i++) {
+                        Bukkit.getScheduler().runTaskLater(this, () -> {
+                            player.setVelocity(vector.rotateAroundY(Math.PI / 6).multiply(1.1));
+                        }, i * 2L);
+                    }
+
+                    if (!tornado.playerHasAlreadyReceivedNamedItem(player.getUniqueId())) {
+                        nameItemInHand(player, tornado);
+                    }
+
+                    // elytra randomly falls off entering tornado
+                    if (chance(5)) {
+                        ItemStack chestplate = player.getInventory().getChestplate();
+                        if (chestplate != null && chestplate.getType() == Material.ELYTRA) {
+                            player.getInventory().setChestplate(null);
+                            player.sendMessage(ChatColor.RED + "" + ChatColor.ITALIC + "The winds tore your elytra into pieces!");
+                        }
+                    }
+                    // random parts of inventory get blown away when entering tornado
+                    if (chance(20)) {
+                        int invSize = player.getInventory().getSize();
+                        boolean someBlownAway = false;
+                        for (int i = 0; i < RANDOM.nextInt(5); i++) {
+                            int slot = RANDOM.nextInt(invSize);
+                            ItemStack stack = player.getInventory().getItem(slot);
+                            player.getInventory().setItem(slot, null);
+                            if (stack != null) {
+                                someBlownAway = true;
+                                Bukkit.getScheduler().runTaskLater(this, () -> {
+                                    Item item = player.getWorld().dropItem(player.getLocation(), stack);
+                                    item.setVelocity(player.getVelocity());
+                                }, 10L * RANDOM.nextInt(4));
+                            }
+                        }
+                        if (someBlownAway) {
+                            Bukkit.getScheduler().runTaskLater(this, () -> {
+                                player.sendMessage(ChatColor.RED + "" + ChatColor.ITALIC + "The winds blew away some of your inventory!");
+                            }, 20L * 2);
+                        }
+                    }
+                } else if (dist < 30) { // if less than 30 blocks from tornado, move around entities that are near the tornado
+                    inBossBarZone = true;
+                    for (Entity entity : player.getNearbyEntities(30, 30, 30)) {
+                        Location entityLocation = entity.getLocation();
+                        double entDist = entityLocation.distance(tornadoLoc);
+                        if (entDist < 7) {
+                            org.bukkit.util.Vector dir = entity.getLocation().getDirection().multiply(2);
+                            org.bukkit.util.Vector vector = new org.bukkit.util.Vector(dir.getX(), 5 + (1 * (5 / entDist)), dir.getZ());
+                            vector.normalize().multiply(2);
+                            for (int i = 1; i < RANDOM.nextInt(20); i++) {
+                                Bukkit.getScheduler().runTaskLater(this, () -> {
+                                    entity.setVelocity(vector.rotateAroundY(Math.PI / 6).multiply(1.1));
+                                }, i * 2L);
+                            }
+                        }
+                    }
+                } else if (dist < 50) {
+                    inBossBarZone = true;
                 }
+            }
+            if (inBossBarZone) {
+                tornadoBossBar.addPlayer(player);
+            } else {
+                tornadoBossBar.removePlayer(player);
             }
         }
     }
 
+    public void nameItemInHand(Player player, Tornado tornado) {
+        ItemStack mainItem = player.getInventory().getItemInMainHand();
+        if (mainItem == null || mainItem.getType() == Material.AIR) {
+            return;
+        }
+
+        if (mainItem.getAmount() > 1) {
+            return;
+        }
+
+        ItemMeta meta = mainItem.getItemMeta();
+
+        if (meta.hasLore()) {
+            return;
+        }
+
+        int firstIndex = tornado.getArea().indexOf(";");
+        if (firstIndex == -1) firstIndex = tornado.getArea().length();
+        String firstArea = tornado.getArea().substring(0, firstIndex);
+        String location = "From the tornado of " + firstArea;
+        String time = LocalDate.now().toString().replace("-", "/");
+        List<String> lore = new ArrayList<>();
+        lore.add(location);
+        lore.add(time);
+        meta.setLore(lore);
+
+        mainItem.setItemMeta(meta);
+        tornado.addPlayerReceivedNamedItem(player.getUniqueId());
+    }
+
+    // ASYNC
     public void updateTornadoes() {
         Set<Tornado> updatedTornadoes = extractTornadoInformation();
-        if (updatedTornadoes.isEmpty()) return;
 
         // this.tornadoes = updatedTornadoes.stream().filter(t -> this.tornadoes.contains(t)).collect(Collectors.toSet());
         Set<Tornado> deadTornadoes = new HashSet<>();
         Set<Tornado> newTornadoes = new HashSet<>(updatedTornadoes);
         for (Tornado tornado : this.tornadoes) {
             double minDist = 999999;
+            Tornado newTornadoIsEqualToOld = null;
             for (Tornado updatedTornado : updatedTornadoes) {
                 double distance = updatedTornado.getLocation().distance(tornado.getLocation());
-                if (updatedTornado.equals(tornado) && distance < minDist) {
-                    tornado.update(updatedTornado);
+                if (updatedTornado.similar(tornado) && distance < minDist) {
                     minDist = distance;
-                    newTornadoes.remove(updatedTornado);
+                    newTornadoIsEqualToOld = updatedTornado;
                 }
             }
-            if (minDist == 999999) {
-                System.out.println("Added to dead");
+            if (newTornadoIsEqualToOld != null && minDist != 999999) {
+                tornado.update(newTornadoIsEqualToOld);
+                newTornadoes.remove(newTornadoIsEqualToOld);
+                updatedTornadoes.remove(newTornadoIsEqualToOld);
+            } else {
+                getLogger().info(tornado.getArea() + " tornado dissipated");
                 deadTornadoes.add(tornado);
             }
         }
@@ -171,42 +292,51 @@ public class EnvironmentPlugin extends JavaPlugin {
         this.tornadoes.addAll(newTornadoes);
 
         for (Tornado tornado : newTornadoes) {
-            System.out.println("Formed one " + tornado.getLocation().getBlockX() + " " + tornado.getLocation().getBlockZ());
+            getLogger().info("Formed tornado at " + tornado.getLocation().getBlockX() + " " + tornado.getLocation().getBlockZ());
             tornado.spawn();
         }
-        System.out.println(tornadoes.size() + " tornadoes");
+        getLogger().info(tornadoes.size() + " tornadoes total");
 
-        if (tornadoes.size() > 0) {
-            String locations = "";
+        if (tornadoes.size() <= 0) return;
+
+        /*
+        Bukkit.getScheduler().runTask(this, () -> {
             for (Tornado tornado : this.tornadoes) {
-                locations += tornado.getArea() + "; ";
+                tornado.getLocation().getWorld().playSound(tornado.getLocation(), Sound.ENTITY_GHAST_SCREAM, SoundCategory.WEATHER, 10F, 0.65F);
             }
-            locations = locations.substring(0, locations.length() - 2);
-            Bukkit.broadcastMessage(ChatColor.RED + "" + ChatColor.BOLD +
-                    "Tornado Warning in effect for the following areas: " + ChatColor.RESET + "" + ChatColor.RED + locations);
+        });
+         */
+
+        String locations = "";
+        for (Tornado tornado : this.tornadoes) {
+            locations += tornado.getArea() + "; ";
         }
+        locations = locations.substring(0, locations.length() - 2);
+        Bukkit.broadcastMessage(ChatColor.RED + "" + ChatColor.BOLD +
+                "Tornado Warning in effect for the following areas: " + ChatColor.RESET + "" + ChatColor.RED + locations);
         // TODO get alerts and alert things, create polygons, find towns in alert zones etc
     }
 
+    // ASYNC
     public Set<Tornado> extractTornadoInformation() {
+        Set<Tornado> tornadoes = new HashSet<>();
+
         JsonElement jsonElement = getAlertData();
-        if (jsonElement == null || jsonElement.isJsonNull()) return null;
+        if (jsonElement == null || jsonElement.isJsonNull()) return tornadoes;
 
         JsonObject rootobj = jsonElement.getAsJsonObject();
-
-        Set<Tornado> tornadoes = new HashSet<>();
 
         JsonArray alerts = rootobj.getAsJsonArray("features");
         for (JsonElement alert : alerts) {
             JsonObject alertObj = alert.getAsJsonObject();
             if (alertObj == null || alertObj.isJsonNull()) {
-                System.out.println("Alert Null");
+                getLogger().warning("Alert Null");
                 continue;
             }
             JsonObject properties = alertObj.get("properties").getAsJsonObject();
             JsonElement eventObj = properties.get("event");
             if (eventObj == null || eventObj.isJsonNull()) {
-                System.out.println("Event Null");
+                getLogger().warning("Event Null");
                 continue;
             }
             String event = eventObj.getAsString();
@@ -215,7 +345,7 @@ public class EnvironmentPlugin extends JavaPlugin {
             JsonElement areaObj = properties.get("areaDesc");
             String area = "";
             if (areaObj == null || areaObj.isJsonNull()) {
-                System.out.println("Area Null");
+                getLogger().warning("Area Null");
                 area = "Unknown";
             } else {
                 area = areaObj.getAsString();
@@ -225,13 +355,13 @@ public class EnvironmentPlugin extends JavaPlugin {
 
             JsonArray eventMotion = parameters.getAsJsonArray("eventMotionDescription");
             if (eventMotion == null || eventMotion.isJsonNull()) {
-                System.out.println("Event Motion Null");
+                getLogger().warning("Event Motion Null");
                 continue;
             }
 
             JsonElement descElement = eventMotion.get(0);
             if (descElement == null || descElement.isJsonNull()) {
-                System.out.println("Event Desc Null");
+                getLogger().warning("Event Desc Null");
                 continue;
             }
             String desc = descElement.getAsString();
@@ -253,8 +383,8 @@ public class EnvironmentPlugin extends JavaPlugin {
         return tornadoes;
     }
 
-
-    public JsonElement getAlertData() {
+    // THIS IS FOR TESTING ONLY
+    public JsonElement getAlertData2() {
         JsonElement json = null;
         try (Reader reader = new InputStreamReader(new FileInputStream("plugins/mcatlas-environment/test.json"), "UTF-8")) {
             json = new JsonParser().parse(reader);
@@ -267,8 +397,9 @@ public class EnvironmentPlugin extends JavaPlugin {
         return json;
     }
 
+    // THIS IS THE REAL ALERT DATA
     @Nullable
-    public JsonElement getActualAlertData() {
+    public JsonElement getAlertData() {
         String urlString = "https://api.weather.gov/alerts/active";
         URL url = null;
         HttpURLConnection connection = null;
@@ -279,6 +410,10 @@ public class EnvironmentPlugin extends JavaPlugin {
             connection.setRequestMethod("GET");
             connection.connect();
         } catch (Exception e) { // any issue with the connection, like an error code
+            if (connection == null) {
+                Bukkit.getLogger().warning("Weather.gov API down?");
+                return null;
+            }
             int code = 0;
             try {
                 code = connection.getResponseCode();
@@ -288,7 +423,7 @@ public class EnvironmentPlugin extends JavaPlugin {
             if (code == 500 && apiOffline) { // api is known to be offline
                 return null;
             } else if (code == 500 && !apiOffline) { // api is not known to be offline
-                Bukkit.getLogger().warning("Gov weather api not work???");
+                Bukkit.getLogger().warning("Weather.gov API down?");
                 apiOffline = true;
                 return null;
             } else if (code == 400) { // bad request (happens occasionally)
