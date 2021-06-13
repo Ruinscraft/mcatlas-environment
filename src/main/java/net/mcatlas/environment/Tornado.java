@@ -35,6 +35,12 @@ public class Tornado {
         return this.area;
     }
 
+    public String getShortenedArea() {
+        int firstIndex = getArea().indexOf(";");
+        if (firstIndex == -1) firstIndex = getArea().length();
+        return getArea().substring(0, firstIndex);
+    }
+
     public boolean playerHasAlreadyReceivedNamedItem(UUID uuid) {
         return this.playersAlreadyReceivedNamedItem.contains(uuid);
     }

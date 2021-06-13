@@ -256,9 +256,7 @@ public class EnvironmentPlugin extends JavaPlugin {
             return;
         }
 
-        int firstIndex = tornado.getArea().indexOf(";");
-        if (firstIndex == -1) firstIndex = tornado.getArea().length();
-        String firstArea = tornado.getArea().substring(0, firstIndex);
+        String firstArea = tornado.getShortenedArea();
         String location = "From the tornado of " + firstArea;
         String time = LocalDate.now().toString().replace("-", "/");
         List<String> lore = new ArrayList<>();
@@ -320,7 +318,7 @@ public class EnvironmentPlugin extends JavaPlugin {
 
         String locations = "";
         for (Tornado tornado : this.tornadoes) {
-            locations += tornado.getArea() + "; ";
+            locations += tornado.getShortenedArea() + "; ";
         }
         locations = locations.substring(0, locations.length() - 2);
         Bukkit.broadcastMessage(ChatColor.RED + "" + ChatColor.BOLD +
