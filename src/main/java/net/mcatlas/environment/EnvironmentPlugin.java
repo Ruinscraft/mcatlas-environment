@@ -131,14 +131,17 @@ public class EnvironmentPlugin extends JavaPlugin {
     public void launchEntitiesInTornado() {
         for (Player player : Bukkit.getOnlinePlayers()) {
             if (player.getWorld().getEnvironment() != World.Environment.NORMAL) {
+                removeFromBossBar(player);
                 continue;
             }
 
             Location location = player.getLocation();
             int x = location.getBlockX();
-            if (x > 0) continue; // eastern hemisphere
             int z = location.getBlockZ();
-            if (z > 0) continue; // southern hemisphere
+            if (x > 0 || z > 0) {
+                removeFromBossBar(player);
+                continue; // southern hemisphere
+            }
             // now only players in north and west hemisphere. USA general area
             int y = location.getWorld().getHighestBlockYAt(location);
             int playerY = location.getBlockY();
@@ -222,11 +225,19 @@ public class EnvironmentPlugin extends JavaPlugin {
                 }
             }
             if (inBossBarZone) {
-                tornadoBossBar.addPlayer(player);
+                addToBossBar(player);
             } else {
-                tornadoBossBar.removePlayer(player);
+                removeFromBossBar(player);
             }
         }
+    }
+
+    public void addToBossBar(Player player) {
+        tornadoBossBar.addPlayer(player);
+    }
+
+    public void removeFromBossBar(Player player) {
+        tornadoBossBar.removePlayer(player);
     }
 
     public void nameItemInHand(Player player, Tornado tornado) {
