@@ -176,6 +176,15 @@ public class WorldListener implements Listener {
 	public void onEntityPortal(EntityPortalEvent event) {
 		if (event.getEntityType() == EntityType.BEE) {
 			event.setCancelled(true);
+		} else if (event.getEntityType() == EntityType.DROPPED_ITEM) {
+			Item item = (Item) event.getEntity();
+			if (item == null) return;
+
+			ItemStack stack = item.getItemStack();
+			if (stack == null) return;
+			if (stack.getType().name().contains("SHULKER_BOX")) {
+				event.setCancelled(true);
+			}
 		}
 	}
 
