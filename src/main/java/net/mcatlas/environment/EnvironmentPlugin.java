@@ -44,6 +44,7 @@ public class EnvironmentPlugin extends JavaPlugin {
 
     private String apiKey;
     private double scaling;
+    private int minutesBetweenTornadoAlerts;
     private boolean apiOffline = false;
 
     private Set<WeatherPlayer> allWeatherPlayers;
@@ -68,6 +69,7 @@ public class EnvironmentPlugin extends JavaPlugin {
         saveDefaultConfig();
         this.apiKey = getConfig().getString("apiKey", null);
         this.scaling = getConfig().getDouble("scaling");
+        this.minutesBetweenTornadoAlerts = getConfig().getInt("minutesBetweenTornadoAlerts");
 
         Bukkit.getScheduler().runTaskTimer(this, () -> {
             setupNetherBees();
@@ -126,6 +128,10 @@ public class EnvironmentPlugin extends JavaPlugin {
 
     public String getAPIKey() {
         return apiKey;
+    }
+
+    public int getMinutesBetweenTornadoAlerts() {
+        return minutesBetweenTornadoAlerts;
     }
 
     public void launchEntitiesInTornado() {
@@ -322,7 +328,7 @@ public class EnvironmentPlugin extends JavaPlugin {
         }
         locations = locations.substring(0, locations.length() - 2);
         Bukkit.broadcastMessage(ChatColor.RED + "" + ChatColor.BOLD +
-                "Tornado Warning in effect for the following areas: " + ChatColor.RESET + "" + ChatColor.RED + locations);
+                "Tornado Warning in effect for: " + ChatColor.RESET + "" + ChatColor.RED + locations);
         // TODO get alerts and alert things, create polygons, find towns in alert zones etc
     }
 

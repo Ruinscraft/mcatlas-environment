@@ -42,7 +42,7 @@ public class WorldListener implements Listener {
 			// async
 			Bukkit.getScheduler().runTaskTimerAsynchronously(EnvironmentPlugin.get(), () -> {
 				EnvironmentPlugin.get().updateTornadoes();
-			}, 0L, 20 * 60 * 5L);
+			}, 0L, 20 * 60 * EnvironmentPlugin.get().getMinutesBetweenTornadoAlerts());
 		}
 	}
 
