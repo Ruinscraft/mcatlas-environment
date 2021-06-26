@@ -385,7 +385,7 @@ public class EnvironmentPlugin extends JavaPlugin {
 
             String latStr = coords.substring(0, coords.indexOf(","));
             double lat = Double.valueOf(latStr);
-            String lonStr = coords.substring(coords.indexOf(",") + 1);
+            String lonStr = coords.substring(coords.lastIndexOf(",") + 1);
             double lon = Double.valueOf(lonStr);
 
             Coordinate coord = this.getMCFromLife(lat, lon);
