@@ -1,8 +1,10 @@
 package net.mcatlas.environment;
 
 import org.bukkit.*;
+import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitRunnable;
 
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
@@ -81,21 +83,31 @@ public class Tornado {
                     location.setY(getHighestSolidBlockYAt(location) + 1.5);
                 });
 
-                world.spawnParticle(Particle.EXPLOSION_NORMAL, location.clone().add((RANDOM.nextDouble() - .5) * 3, 0, (RANDOM.nextDouble() - .5) * 4), 1);
-                world.spawnParticle(Particle.EXPLOSION_NORMAL, location.clone().add((RANDOM.nextDouble() - .5) * 3, 0, (RANDOM.nextDouble() - .5) * 4), 1);
-                world.spawnParticle(Particle.EXPLOSION_LARGE, location.clone().add((RANDOM.nextDouble() - .5) * 3, 0, (RANDOM.nextDouble() - .5) * 4), 1);
+                Collection<Player> nearbyPlayers = Bukkit.getWorlds().get(0).getNearbyPlayers(location, 150);
+
+                for (Player player : nearbyPlayers) {
+                    Bukkit.getScheduler().runTaskAsynchronously(EnvironmentPlugin.get(), () -> {
+                        player.spawnParticle(Particle.EXPLOSION_NORMAL, location.clone().add((RANDOM.nextDouble() - .5) * 3, 0, (RANDOM.nextDouble() - .5) * 4), 1);
+                        player.spawnParticle(Particle.EXPLOSION_NORMAL, location.clone().add((RANDOM.nextDouble() - .5) * 3, 0, (RANDOM.nextDouble() - .5) * 4), 1);
+                        player.spawnParticle(Particle.EXPLOSION_LARGE, location.clone().add((RANDOM.nextDouble() - .5) * 3, 0, (RANDOM.nextDouble() - .5) * 4), 1);
+                    });
+                }
 
                 for (double height = .75; height < 20; height += .9) {
                     double width = 1.25 + ((height * height) / 40);
                     double radian = RANDOM.nextDouble() * (Math.PI * 2);
                     Location spawnParticle = location.clone().add(Math.sin(radian) * width, height,  Math.cos(radian) * width);
-                    if (chance(2)) {
-                        world.playSound(spawnParticle.clone(), Sound.ITEM_ELYTRA_FLYING, SoundCategory.WEATHER, 1.5F, 0.5F);
+                    for (Player player : nearbyPlayers) {
+                        Bukkit.getScheduler().runTaskAsynchronously(EnvironmentPlugin.get(), () -> {
+                            if (chance(2)) {
+                                player.playSound(spawnParticle.clone(), Sound.ITEM_ELYTRA_FLYING, SoundCategory.WEATHER, 1.5F, 0.5F);
+                            }
+                            player.spawnParticle(Particle.REDSTONE, spawnParticle, 1, DUST_OPTIONS);
+                        });
                     }
-                    world.spawnParticle(Particle.REDSTONE, spawnParticle, 1, DUST_OPTIONS);
                 }
             }
-        }.runTaskTimerAsynchronously(EnvironmentPlugin.get(), 10L, 2L);
+        }.runTaskTimer(EnvironmentPlugin.get(), 10L, 2L);
     }
 
     public void cancel() {
