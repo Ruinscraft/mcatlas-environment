@@ -36,23 +36,7 @@ public class WorldListener implements Listener {
 
 		if (world.getEnvironment() == World.Environment.NETHER) {
 			world.getPopulators().add(new NetherPopulator());
-		} else if (world.getEnvironment() == World.Environment.NORMAL) {
-			// EnvironmentUtil.createTornado(new Location(Bukkit.getWorlds().get(0), 500, 100, 500));
-			// every 5(maybe) minutes updates tornado locations
-			// async
-			Bukkit.getScheduler().runTaskTimerAsynchronously(EnvironmentPlugin.get(), () -> {
-				EnvironmentPlugin.get().updateTornadoes();
-			}, 0L, 20 * 60 * EnvironmentPlugin.get().getMinutesBetweenTornadoAlerts());
 		}
-	}
-
-	@EventHandler
-	public void onPlayerJoin(PlayerJoinEvent event) {
-		World world = event.getPlayer().getWorld();
-		if (world.getEnvironment() != World.Environment.NORMAL) {
-			return;
-		}
-		EnvironmentPlugin.get().addPlayerToQueue(event.getPlayer(), EnvironmentPlugin.WeatherPriority.JOIN);
 	}
 
 	// When block is placed
