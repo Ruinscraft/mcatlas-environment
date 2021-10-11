@@ -208,7 +208,9 @@ public class WorldListener implements Listener {
 		if (EnvironmentPlugin.isNether(player.getWorld())) {
 			if (y >= 127) {
 				player.sendMessage(MSG_HEY + "You can't come up here.");
-				from.setY(126);
+				if (from.getY() >= 126) {
+					from.setY(126);
+				}
 				player.teleport(from);
 
 				return;
