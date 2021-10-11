@@ -203,11 +203,14 @@ public class WorldListener implements Listener {
 		double y = event.getTo().getY();
 		double z = event.getTo().getZ();
 		Player player = event.getPlayer();
+		Location from = event.getFrom();
 
 		if (EnvironmentPlugin.isNether(player.getWorld())) {
 			if (y >= 127) {
 				player.sendMessage(MSG_HEY + "You can't come up here.");
-				player.teleport(event.getFrom());
+				from.setY(126);
+				player.teleport(from);
+
 				return;
 			}
 		}
